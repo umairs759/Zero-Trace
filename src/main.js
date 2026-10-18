@@ -1,3 +1,5 @@
+import './style.css'
+import './style.css'
 // ZeroTrace — Application entry point (T-003 to T-009)
 // Renders the app shell using DOM nodes only (no innerHTML) and wires up
 // dropzone ingestion → metadata reading → stripping → batch ZIP export.

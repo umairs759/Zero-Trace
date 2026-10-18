@@ -1,10 +1,3 @@
-// ZeroTrace — Stripper core (T-007)
-// Lossless JPEG APP chunk stripping (EXIF lives in APP1) + PDF info-dictionary
-// sanitization via pdf-lib. Returns an ArrayBuffer of the sanitized file.
-// Throws on invalid/corrupt input; callers wrap in try/catch (see RULES.md).
-//
-// T-008 adds the PNG/WebP OffscreenCanvas fallback.
-
 import { PDFDocument } from 'pdf-lib'
 
 /**
@@ -13,6 +6,10 @@ import { PDFDocument } from 'pdf-lib'
  */
 export async function stripFile(input) {
   const { name, type, buffer } = input
+
+  if (!buffer) {
+    throw new Error(`Buffer missing for file: ${name}`)
+  }
 
   if (type === 'application/pdf') {
     return { name, type, buffer: await stripPdf(buffer) }
@@ -25,7 +22,7 @@ export async function stripFile(input) {
   if (type === 'image/png' || type === 'image/webp') {
     return {
       name,
-      type: 'image/png', // canvas re-encode normalizes to PNG
+      type: 'image/png',
       buffer: await stripPngWebpCanvas(buffer, type),
     }
   }
@@ -34,23 +31,49 @@ export async function stripFile(input) {
 }
 
 /**
- * PNG/WebP fallback: redraw pixels onto an OffscreenCanvas and re-export.
- * Because only raw pixels are carried over, all container metadata is lost.
+ * PNG/WebP canvas fallback using standard browser Image & Canvas
+ * Strips all metadata completely by redrawing pure pixels.
  */
-async function stripPngWebpCanvas(buffer, mimeType) {
-  const blob = new Blob([buffer], { type: mimeType })
-  const bitmap = await createImageBitmap(blob)
-  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
-  const ctx = canvas.getContext('2d')
-  ctx.drawImage(bitmap, 0, 0)
-  const outBlob = await canvas.convertToBlob({ type: 'image/png' })
-  return outBlob.arrayBuffer()
+async function stripPngWebpCanvas(buffer, mimeType = 'image/png') {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([buffer], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth || img.width
+        canvas.height = img.naturalHeight || img.height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0)
+        URL.revokeObjectURL(url)
+
+        canvas.toBlob((cleanBlob) => {
+          if (!cleanBlob) {
+            reject(new Error('Canvas export failed'))
+            return
+          }
+          cleanBlob.arrayBuffer().then(resolve).catch(reject)
+        }, 'image/png')
+      } catch (err) {
+        URL.revokeObjectURL(url)
+        reject(err)
+      }
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image for canvas stripping'))
+    }
+
+    img.src = url
+  })
 }
 
 /**
  * Strip all APPn (0xE0–0xEF) and COM (0xFE) segments from a JPEG.
- * EXIF/XMP metadata lives in APP1 (0xFFE1); removing every APP segment is
- * lossless for image data because SOF/DHT/DQT/SOS/entropy/EOI are preserved.
+ * Lossless for image data because SOF/DHT/DQT/SOS/entropy/EOI are preserved.
  */
 export function stripJpeg(buffer) {
   const data = new Uint8Array(buffer)
@@ -64,7 +87,6 @@ export function stripJpeg(buffer) {
   let i = 0
 
   while (i < n) {
-    // Every 0xFF outside entropy data begins a marker.
     if (data[i] !== 0xff) {
       i++
       continue
@@ -86,8 +108,7 @@ export function stripJpeg(buffer) {
       break
     }
 
-    // SOS — entropy data follows verbatim (may contain stuffed 0xFF bytes);
-    // copy the rest through EOI and finish.
+    // SOS — copy remaining entropy data through EOI
     if (marker === 0xda) {
       for (; i < n; i++) {
         out.push(data[i])
@@ -95,15 +116,13 @@ export function stripJpeg(buffer) {
       break
     }
 
-    // 0xFF 0x00 / 0xFF 0xFF are stuffed bytes outside entropy; keep one 0xFF.
+    // 0xFF 0x00 / 0xFF 0xFF
     if (marker === 0x00 || marker === 0xff) {
       out.push(0xff)
       i += 2
       continue
     }
 
-    // All remaining markers (APPn, COM, DQT, DHT, SOF, DRI, …) have a
-    // two-byte length that includes itself.
     if (i + 2 >= n) {
       break
     }
@@ -114,12 +133,10 @@ export function stripJpeg(buffer) {
     const isCom = marker === 0xfe
 
     if (isApp || isCom) {
-      // Strip this metadata segment entirely.
       i = segmentEnd
       continue
     }
 
-    // Keep the segment verbatim.
     const end = Math.min(segmentEnd, n)
     for (let j = i; j < end; j++) {
       out.push(data[j])
