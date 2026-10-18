@@ -482,25 +482,35 @@ cleanBtn.addEventListener('click', async () => {
   const newSanitized = []
   let failed = 0
 
-  const { readMetadata } = await import('./modules/metadataReader.js')
+  const { readMetadata, sha256 } = await import('./modules/metadataReader.js')
 
   for (let i = 0; i < parsed.length; i++) {
     const file = parsed[i]
     try {
-      const clean = await stripFile(file)
+      const cleanBuffer = await stripFile(file)
+
+      // Compute SHA-256 for the sanitized buffer.
+      const sanitizedHash = await sha256(cleanBuffer)
 
       // Re-verification: parse the clean buffer to confirm zero tags remain.
-      const verify = await readMetadata(clean)
+      const verify = await readMetadata(cleanBuffer)
       const isVerified =
         verify.threatScore === 0 &&
         (verify.strippedTags || []).length === 0
 
       newSanitized.push({
-        ...clean,
-        originalName: file.name,
-        originalHash: file.hash,
+        ...file,
+        name: file.name,
+        type: file.type,
+        buffer: cleanBuffer,
+        sanitizedBuffer: cleanBuffer,
+        sanitizedSha256: sanitizedHash,
+        isSanitized: true,
         verified: isVerified,
         verifiedTags: verify.strippedTags || [],
+        hash: verify.hash || sanitizedHash,
+        threatScore: verify.threatScore || 0,
+        strippedTags: verify.strippedTags || [],
       })
     } catch (err) {
       failed++
@@ -548,7 +558,7 @@ resultsEl.addEventListener('click', (e) => {
     const file = sanitized[index]
     if (!file) return
     downloadBlob(
-      new Blob([file.buffer], { type: file.type }),
+      new Blob([file.sanitizedBuffer || file.buffer], { type: file.type }),
       generateCleanName(file.originalName || file.name, index, file.type)
     )
     return
@@ -563,19 +573,31 @@ resultsEl.addEventListener('click', (e) => {
 
     ;(async () => {
       try {
-        const clean = await stripFile(file)
-        const { readMetadata } = await import('./modules/metadataReader.js')
-        const verify = await readMetadata(clean)
+        const cleanBuffer = await stripFile(file)
+
+        // Compute SHA-256 for the sanitized buffer.
+        const { readMetadata, sha256 } = await import('./modules/metadataReader.js')
+        const sanitizedHash = await sha256(cleanBuffer)
+
+        // Re-verification: parse the clean buffer to confirm zero tags remain.
+        const verify = await readMetadata(cleanBuffer)
         const isVerified =
           verify.threatScore === 0 &&
           (verify.strippedTags || []).length === 0
 
         sanitized[index] = {
-          ...clean,
-          originalName: file.name,
-          originalHash: file.hash,
+          ...file,
+          name: file.name,
+          type: file.type,
+          buffer: cleanBuffer,
+          sanitizedBuffer: cleanBuffer,
+          sanitizedSha256: sanitizedHash,
+          isSanitized: true,
           verified: isVerified,
           verifiedTags: verify.strippedTags || [],
+          hash: verify.hash || sanitizedHash,
+          threatScore: verify.threatScore || 0,
+          strippedTags: verify.strippedTags || [],
         }
 
         const sanitizedMap = new Map()

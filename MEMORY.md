@@ -1,25 +1,23 @@
-# Active State Tracker — AstroWind-Style Forensic Workbench Rebuild
-- **Current Task**: All overhaul steps complete (Base T-001–T-011 + Rebuild AB-01–AB-05)
-- **Root Cause Fixed**: `main.js` was building all UI programmatically and appending to `#app`, but `index.html` only had an empty `#app`. Fixed by adding `#workbench-container`, `#results`, and `#action-bar-container` directly to `index.html`, and having `main.js` reference them via `document.getElementById()`.
-- **Decisions Log**: 
-  - Vanilla JS + Vite for minimal bundle size and fastest binary parsing.
-  - ArrayBuffer over Base64 to save memory on large files.
-  - JPEG stripper removes all APPn (0xE0–0xEF) and COM segments; image data preserved losslessly.
-  - PDF sanitization clears info dictionary via pdf-lib.
-  - PNG/WebP use document.createElement('canvas') + Image pixel redraw re-encoded to PNG.
-  - All DOM rendering uses document.createElement() + .textContent; zero innerHTML for user data.
-  - Every Object URL revoked: thumbnails on reset, download blobs after 200ms.
-  - Threat Score: GPS +50, Device ID +30, Timestamps +15, Camera specs +15 (0–100 scale).
-  - SHA-256 fingerprints via native Web Crypto API (crypto.subtle.digest).
-  - Re-verification: clean buffer re-parsed through readMetadata(); "VERIFIED CLEAN" badge when 0 tags remain.
-  - Inline SVGs (1.5px stroke) replace all emojis; no external assets, no CDNs.
-  - Real image thumbnails via URL.createObjectURL(new Blob([buffer])) with object-fit: cover.
-  - Tailwind v3 (installed version) — style.css uses @tailwind directives, not v4 @import/@theme.
+# Active State Tracker — Bugfix & Forensic Output Complete
+- **Current Task**: All fixes complete (Base T-001–T-011 + Bugfixes BF-01–BF-07)
+- **Root Cause Fixed**: `TypeError: Setting getter-only property "className"` occurred on SVG elements created via `document.createElementNS`. SVG elements expose `className` as an `SVGAnimatedString` (read-only), so `alertIcon.className += ' text-rose-400'` and `check.className += ' text-emerald-400'` threw at runtime. Fixed by passing the combined class string directly to `createSvgIcon()` which uses `svg.setAttribute('class', ...)`.
+- **Sanitization State Loop**: 
+  - `stripFile(file)` → clean buffer
+  - `crypto.subtle.digest('SHA-256', cleanBuffer)` → sanitizedSha256
+  - `readMetadata(cleanBuffer)` → re-verify zero tags remain
+  - Store `sanitizedBuffer`, `sanitizedSha256`, `isSanitized`, `verified`, `verifiedTags` on the file object
+- **UI Transitions**: 
+  - "VERIFIED CLEAN: 0 TAGS REMAINING" glowing badge (emerald)
+  - Sanitized SHA-256 displayed in Cryptographic Comparison
+  - Per-file "Download Sanitized File" button (bg-emerald-500 hover:bg-emerald-400)
+  - Action bar "Download All as ZIP" enabled when files sanitized
+- **zipExporter.js**: Added `downloadSingleFile(buffer, fileName, mimeType)` helper using `downloadBlob`.
 - **Constraints Verified**: 
   - vite.config.js base: '/Zero-Trace/' (locked, untouched)
   - .github/workflows/deploy.yml (locked, untouched)
   - src/main.js line 1: import './style.css' (locked)
   - buffer: file.buffer preserved across all pipeline states
   - Zero innerHTML, zero fetch/XHR, zero localStorage/sessionStorage, zero emojis
+  - No `className` assignment on SVG elements (all use setAttribute or constructor class param)
   - No external network calls (CSP connect-src 'none')
 - **Known Issues**: PDF trailer dates may persist after info-dictionary clearing (pdf-lib limitation); canvas re-encode changes PNG/WebP format (not byte-identical).

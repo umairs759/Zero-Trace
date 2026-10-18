@@ -222,7 +222,7 @@ export function renderFileCard(container, result, index, options = {}) {
   const verifiedBadge = document.createElement('span')
   verifiedBadge.className =
     'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 hidden'
-  verifiedBadge.textContent = 'VERIFIED CLEAN'
+  verifiedBadge.textContent = 'VERIFIED CLEAN: 0 TAGS REMAINING'
   inspectorHeader.appendChild(verifiedBadge)
 
   inspector.appendChild(inspectorHeader)
@@ -301,8 +301,7 @@ export function renderFileCard(container, result, index, options = {}) {
 
     const gpsLabel = document.createElement('div')
     gpsLabel.className = 'text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1'
-    const alertIcon = createSvgIcon(ICONS.alert, 'w-3 h-3')
-    alertIcon.className += ' text-rose-400'
+    const alertIcon = createSvgIcon(ICONS.alert, 'w-3 h-3 text-rose-400')
     gpsLabel.appendChild(alertIcon)
     const gpsText = document.createElement('span')
     gpsText.textContent = 'EXACT LOCATION EXPOSED'
@@ -347,11 +346,10 @@ export function renderFileCard(container, result, index, options = {}) {
   } else if (isVerified) {
     const cleanRow = document.createElement('div')
     cleanRow.className = 'col-span-2 flex items-center gap-2 text-emerald-400 font-mono text-[10px]'
-    const check = createSvgIcon(ICONS.check, 'w-3 h-3')
-    check.className += ' text-emerald-400'
+    const check = createSvgIcon(ICONS.check, 'w-3 h-3 text-emerald-400')
     cleanRow.appendChild(check)
     const cleanText = document.createElement('span')
-    cleanText.textContent = 'All tags stripped — VERIFIED CLEAN'
+    cleanText.textContent = '0 tags remaining — VERIFIED CLEAN'
     cleanRow.appendChild(cleanText)
     afterList.appendChild(cleanRow)
     verifiedBadge.classList.remove('hidden')
@@ -390,7 +388,7 @@ export function renderFileCard(container, result, index, options = {}) {
 
   const hashRows = [
     ['Original', result.hash],
-    ['Sanitized', sanitizedResult ? sanitizedResult.hash : '—'],
+    ['Sanitized', sanitizedResult ? sanitizedResult.sanitizedSha256 : '—'],
   ]
   for (const [label, value] of hashRows) {
     const row = document.createElement('div')
@@ -422,9 +420,9 @@ export function renderFileCard(container, result, index, options = {}) {
   if (sanitizedResult) {
     const downloadBtn = document.createElement('button')
     downloadBtn.className =
-      'w-full sm:w-auto px-4 py-2.5 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 underline decoration-1 decoration-cyan-500/30 hover:decoration-cyan-400 transition-all rounded bg-cyan-900/20 border border-cyan-900/30 text-left flex items-center gap-2'
+      'w-full sm:w-auto px-4 py-2.5 text-[11px] font-bold text-zinc-950 hover:text-zinc-900 transition-all rounded bg-emerald-500 hover:bg-emerald-400 shadow-lg text-left flex items-center gap-2'
     downloadBtn.setAttribute('data-download-clean', String(index))
-    const downIcon = createSvgIcon(ICONS.download, 'w-3 h-3 text-cyan-400')
+    const downIcon = createSvgIcon(ICONS.download, 'w-3 h-3 text-zinc-950')
     downloadBtn.appendChild(downIcon)
     const downLabel = document.createElement('span')
     downLabel.textContent = 'Download Sanitized File'

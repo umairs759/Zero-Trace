@@ -78,3 +78,14 @@ export function downloadBlob(blob, fileName) {
     URL.revokeObjectURL(url)
   }, 200)
 }
+
+/**
+ * Download a single sanitized file directly (per-file download).
+ * @param {ArrayBuffer} buffer
+ * @param {string} fileName
+ * @param {string} mimeType
+ */
+export function downloadSingleFile(buffer, fileName, mimeType) {
+  const blob = new Blob([buffer], { type: mimeType })
+  downloadBlob(blob, fileName)
+}

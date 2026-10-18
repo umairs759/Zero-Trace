@@ -1,4 +1,4 @@
-# Execution Checklist — AstroWind-Style Forensic Workbench Rebuild
+# Execution Checklist — Bugfix & Forensic Output Complete
 - [x] T-001: Initialize Vite + Vanilla JS + Tailwind CSS configuration.
 - [x] T-002: Install dependencies (`exifr`, `pdf-lib`, `jszip`, `lucide`).
 - [x] T-003: Setup index.html skeleton (Header, Dropzone area, Results grid, Action bar).
@@ -10,8 +10,10 @@
 - [x] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
 - [x] T-010: Write unit tests for the stripper module using Vitest.
 - [x] T-011: Configure `vite.config.js` and GitHub Actions for GitHub Pages deployment.
-- [x] AB-01: Root-cause fix — index.html now has #workbench-container, #results, #action-bar_container.
-- [x] AB-02: Rewrote uiRenderer.js — split Before/After diff cards, real thumbnails, risk gauges, all .textContent.
-- [x] AB-03: Rewrote main.js — references existing DOM elements, per-file clean/download, documentation sections.
-- [x] AB-04: Fixed style.css — Tailwind v3 compatible (removed v4 @import/@theme syntax).
-- [x] AB-05: Verified build passes with zero errors.
+- [x] BF-01: Fix SVG `className` getter-only exception — replaced `alertIcon.className +=` and `check.className +=` with `createSvgIcon(..., 'class text-color')` pattern.
+- [x] BF-02: Complete sanitization state loop — store `sanitizedBuffer`, `sanitizedSha256`, `isSanitized` on file objects after `stripFile()` + `crypto.subtle.digest('SHA-256')`.
+- [x] BF-03: Re-verification step — re-parse clean buffer via `readMetadata()`, verify `threatScore === 0` and zero remaining tags.
+- [x] BF-04: UI transitions — "VERIFIED CLEAN: 0 TAGS REMAINING" badge, sanitized SHA-256 hash display, emerald "Download Sanitized File" button per card.
+- [x] BF-05: Action bar — enable "Download All as ZIP" when files are sanitized.
+- [x] BF-06: Add `downloadSingleFile()` helper to `zipExporter.js` for per-file downloads.
+- [x] BF-07: Verified tests pass (4/4) and build compiles cleanly.
