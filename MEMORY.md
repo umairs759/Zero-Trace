@@ -1,0 +1,11 @@
+# Active State Tracker
+- **Current Task**: All tasks complete (T-001 through T-011)
+- **Decisions Log**: 
+  - Opted for Vanilla JS to minimize overhead.
+  - Opted for ArrayBuffer over Base64 to save memory on large files.
+  - JPEG stripper removes all APPn (0xE0–0xEF) and COM segments; image data (SOF/DHT/DQT/SOS/entropy/EOI) preserved for lossless visual result.
+  - PDF sanitization clears the info dictionary via pdf-lib (title/author/subject/creator/producer/keywords/dates).
+  - PNG/WebP use OffscreenCanvas pixel redraw re-encoded to PNG (metadata lost, pixels preserved).
+  - All DOM rendering uses textContent only; no innerHTML anywhere.
+  - Every Object URL revoked after download (200ms delay to let browser initiate).
+- **Known Issues**: PDF creation/modification dates may remain in the trailer after info-dictionary clearing (pdf-lib limitation); canvas fallback re-encodes PNG/WebP to PNG (format change, not byte-identical).

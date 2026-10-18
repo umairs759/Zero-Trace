@@ -1,0 +1,13 @@
+# Execution Checklist
+- [x] T-001: Initialize Vite + Vanilla JS + Tailwind CSS configuration.
+- [x] T-002: Install dependencies (`exifr`, `pdf-lib`, `jszip`, `lucide`).
+- [x] T-003: Setup index.html skeleton (Header, Dropzone area, Results grid, Action bar).
+- [x] T-004: Implement `src/modules/dropzone.js` (Drag & drop events, file validation, ArrayBuffer extraction).
+- [x] T-005: Implement `src/modules/metadataReader.js` (Parse images with exifr, PDFs with pdf-lib).
+- [x] T-006: Implement `src/modules/uiRenderer.js` (Render metadata cards, color-code risk levels).
+- [x] T-007: Implement `src/modules/stripper.js` (Lossless APP chunk stripping for JPEGs + PDF dictionary sanitization).
+- [ ] T-008: Implement `src/modules/stripper.js` fallback (Canvas pixel redraw for PNG/WebP).
+- [x] T-008: Implement `src/modules/stripper.js` fallback (Canvas pixel redraw for PNG/WebP).
+- [ ] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
+- [x] T-010: Write unit tests for the stripper module using Vitest.
+- [x] T-011: Configure `vite.config.js` and GitHub Actions for GitHub Pages deployment.
