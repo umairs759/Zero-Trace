@@ -1,23 +1,24 @@
-# Active State Tracker — Bugfix & Forensic Output Complete
-- **Current Task**: All fixes complete (Base T-001–T-011 + Bugfixes BF-01–BF-07)
-- **Root Cause Fixed**: `TypeError: Setting getter-only property "className"` occurred on SVG elements created via `document.createElementNS`. SVG elements expose `className` as an `SVGAnimatedString` (read-only), so `alertIcon.className += ' text-rose-400'` and `check.className += ' text-emerald-400'` threw at runtime. Fixed by passing the combined class string directly to `createSvgIcon()` which uses `svg.setAttribute('class', ...)`.
-- **Sanitization State Loop**: 
-  - `stripFile(file)` → clean buffer
-  - `crypto.subtle.digest('SHA-256', cleanBuffer)` → sanitizedSha256
+# Active State Tracker — Resilient Stripper Pipeline & State Update
+- **Current Task**: All fixes complete (Base T-001–T-011 + Bugfixes BF-01–BF-06 + Final Fixes FF-01–FF-05)
+- **Root Cause Fixed (FF-01)**: Non-standard JPEG files (e.g. WhatsApp images) fail strict binary SOI/APP marker parsing in `stripJpeg()`. The error was uncaught, halting the entire sanitize pipeline. Fixed by wrapping `stripJpeg()` in try/catch inside `stripFile()` and falling back to `stripCanvasFallback()` on ANY error.
+- **Root Cause Fixed (BF-01)**: `TypeError: Setting getter-only property "className"` on SVG elements created via `document.createElementNS`. Fixed by using `svg.setAttribute('class', ...)` exclusively.
+- **Sanitization State Loop**:
+  - `stripFile(file)` → clean buffer (lossless JPEG strip or canvas fallback)
+  - `computeHash(cleanBuffer)` via `crypto.subtle.digest('SHA-256')` → sanitizedSha256
   - `readMetadata(cleanBuffer)` → re-verify zero tags remain
   - Store `sanitizedBuffer`, `sanitizedSha256`, `isSanitized`, `verified`, `verifiedTags` on the file object
-- **UI Transitions**: 
-  - "VERIFIED CLEAN: 0 TAGS REMAINING" glowing badge (emerald)
-  - Sanitized SHA-256 displayed in Cryptographic Comparison
-  - Per-file "Download Sanitized File" button (bg-emerald-500 hover:bg-emerald-400)
+- **UI Transitions**:
+  - "VERIFIED CLEAN" badge (bg-emerald-500/20 text-emerald-400 border-emerald-500/30)
+  - AFTER column: "Status: ✓ All Metadata Stripped", "Clean SHA-256: <hash>"
+  - Per-file "Download Sanitized File" button via `data-download-clean` delegation
   - Action bar "Download All as ZIP" enabled when files sanitized
-- **zipExporter.js**: Added `downloadSingleFile(buffer, fileName, mimeType)` helper using `downloadBlob`.
-- **Constraints Verified**: 
+- **zipExporter.js**: `downloadSingleFile(buffer, fileName, mimeType)` helper added.
+- **Constraints Verified**:
   - vite.config.js base: '/Zero-Trace/' (locked, untouched)
   - .github/workflows/deploy.yml (locked, untouched)
   - src/main.js line 1: import './style.css' (locked)
   - buffer: file.buffer preserved across all pipeline states
   - Zero innerHTML, zero fetch/XHR, zero localStorage/sessionStorage, zero emojis
-  - No `className` assignment on SVG elements (all use setAttribute or constructor class param)
+  - No `className` assignment on SVG elements (all use setAttribute)
   - No external network calls (CSP connect-src 'none')
 - **Known Issues**: PDF trailer dates may persist after info-dictionary clearing (pdf-lib limitation); canvas re-encode changes PNG/WebP format (not byte-identical).

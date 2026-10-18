@@ -1,4 +1,4 @@
-# Execution Checklist — Bugfix & Forensic Output Complete
+# Execution Checklist — Resilient Stripper Pipeline & State Update
 - [x] T-001: Initialize Vite + Vanilla JS + Tailwind CSS configuration.
 - [x] T-002: Install dependencies (`exifr`, `pdf-lib`, `jszip`, `lucide`).
 - [x] T-003: Setup index.html skeleton (Header, Dropzone area, Results grid, Action bar).
@@ -10,10 +10,14 @@
 - [x] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
 - [x] T-010: Write unit tests for the stripper module using Vitest.
 - [x] T-011: Configure `vite.config.js` and GitHub Actions for GitHub Pages deployment.
-- [x] BF-01: Fix SVG `className` getter-only exception — replaced `alertIcon.className +=` and `check.className +=` with `createSvgIcon(..., 'class text-color')` pattern.
-- [x] BF-02: Complete sanitization state loop — store `sanitizedBuffer`, `sanitizedSha256`, `isSanitized` on file objects after `stripFile()` + `crypto.subtle.digest('SHA-256')`.
-- [x] BF-03: Re-verification step — re-parse clean buffer via `readMetadata()`, verify `threatScore === 0` and zero remaining tags.
-- [x] BF-04: UI transitions — "VERIFIED CLEAN: 0 TAGS REMAINING" badge, sanitized SHA-256 hash display, emerald "Download Sanitized File" button per card.
-- [x] BF-05: Action bar — enable "Download All as ZIP" when files are sanitized.
+- [x] BF-01: Fix SVG `className` getter-only exception — replaced `className +=` on SVGs with `setAttribute('class', ...)`.
+- [x] BF-02: Complete sanitization state loop — store `sanitizedBuffer`, `sanitizedSha256`, `isSanitized` on file objects.
+- [x] BF-03: Re-verification step — re-parse clean buffer via `readMetadata()`, verify `threatScore === 0`.
+- [x] BF-04: UI transitions — "VERIFIED CLEAN" badge, sanitized SHA-256 display, emerald download button per card.
+- [x] BF-05: Action bar — enable "Download All as ZIP" when files sanitized.
 - [x] BF-06: Add `downloadSingleFile()` helper to `zipExporter.js` for per-file downloads.
-- [x] BF-07: Verified tests pass (4/4) and build compiles cleanly.
+- [x] FF-01: Bulletproof `stripFile()` — JPEG tries `stripJpeg()` first, falls back to `stripCanvasFallback()` on ANY error (WhatsApp/non-standard JPEGs).
+- [x] FF-02: Export `computeHash(buffer)` from `src/main.js` — handles ArrayBuffer and ArrayBufferView (Uint8Array).
+- [x] FF-03: `handleCleanSingle(index)` — extracts clean buffer via `result.buffer instanceof ArrayBuffer ? result.buffer : result.buffer.buffer`, computes SHA-256, updates state, re-renders.
+- [x] FF-04: `uiRenderer.js` renderResults uses `data-clean-file` / `data-download-clean` attributes (delegated event handling, no inline onclick).
+- [x] FF-05: Verified tests pass (4/4) and build compiles cleanly (0 errors).

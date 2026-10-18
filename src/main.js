@@ -4,6 +4,21 @@ import { renderResults, revokeAllThumbnails } from './modules/uiRenderer.js'
 import { stripFile, generateCleanName } from './modules/stripper.js'
 import { exportZip, downloadBlob } from './modules/zipExporter.js'
 
+/**
+ * Compute SHA-256 digest of a buffer via the native Web Crypto API.
+ * Accepts ArrayBuffer or ArrayBufferView (e.g. Uint8Array).
+ * @param {ArrayBuffer|ArrayBufferView} buffer
+ * @returns {Promise<string>} 64-character lowercase hex string
+ */
+export async function computeHash(buffer) {
+  const data = buffer instanceof ArrayBuffer ? buffer : buffer.buffer
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  const hex = Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return hex
+}
+
 const app = document.querySelector('#app')
 
 // ========================================================================
@@ -482,18 +497,26 @@ cleanBtn.addEventListener('click', async () => {
   const newSanitized = []
   let failed = 0
 
-  const { readMetadata, sha256 } = await import('./modules/metadataReader.js')
+  const { readMetadata } = await import('./modules/metadataReader.js')
 
   for (let i = 0; i < parsed.length; i++) {
     const file = parsed[i]
     try {
-      const cleanBuffer = await stripFile(file)
+      const result = await stripFile(file)
+
+      // Extract the raw ArrayBuffer from the strip result.
+      const cleanBuffer =
+        result.buffer instanceof ArrayBuffer
+          ? result.buffer
+          : result.buffer && result.buffer.buffer
+          ? result.buffer.buffer
+          : result.buffer
 
       // Compute SHA-256 for the sanitized buffer.
-      const sanitizedHash = await sha256(cleanBuffer)
+      const sanitizedHash = await computeHash(cleanBuffer)
 
       // Re-verification: parse the clean buffer to confirm zero tags remain.
-      const verify = await readMetadata(cleanBuffer)
+      const verify = await readMetadata({ ...file, buffer: cleanBuffer })
       const isVerified =
         verify.threatScore === 0 &&
         (verify.strippedTags || []).length === 0
@@ -501,7 +524,7 @@ cleanBtn.addEventListener('click', async () => {
       newSanitized.push({
         ...file,
         name: file.name,
-        type: file.type,
+        type: result.type || file.type,
         buffer: cleanBuffer,
         sanitizedBuffer: cleanBuffer,
         sanitizedSha256: sanitizedHash,
@@ -535,7 +558,7 @@ cleanBtn.addEventListener('click', async () => {
     if (s) sanitizedMap.set(idx, s)
   })
 
-  renderResults(resultsEl, parsed, { sanitizedMap })
+  renderResults(resultsEl, parsed, handleCleanSingle)
   updateActionBar()
 })
 
@@ -550,6 +573,64 @@ zipBtn.addEventListener('click', () => {
 // ========================================================================
 // PER-FILE ACTIONS (delegated)
 // ========================================================================
+
+/**
+ * Sanitize a single file by index, update state, and re-render.
+ * @param {number} index - index into the `parsed` array
+ */
+async function handleCleanSingle(index) {
+  const file = parsed[index]
+  if (!file) return
+
+  try {
+    const result = await stripFile(file)
+
+    // Extract the raw ArrayBuffer from the strip result.
+    const cleanBuffer =
+      result.buffer instanceof ArrayBuffer
+        ? result.buffer
+        : result.buffer && result.buffer.buffer
+        ? result.buffer.buffer
+        : result.buffer
+
+    // Compute SHA-256 for the sanitized buffer.
+    const sanitizedHash = await computeHash(cleanBuffer)
+
+    // Re-verification: parse the clean buffer to confirm zero tags remain.
+    const { readMetadata } = await import('./modules/metadataReader.js')
+    const verify = await readMetadata({ ...file, buffer: cleanBuffer })
+    const isVerified =
+      verify.threatScore === 0 &&
+      (verify.strippedTags || []).length === 0
+
+    sanitized[index] = {
+      ...file,
+      name: file.name,
+      type: result.type || file.type,
+      buffer: cleanBuffer,
+      sanitizedBuffer: cleanBuffer,
+      sanitizedSha256: sanitizedHash,
+      isSanitized: true,
+      verified: isVerified,
+      verifiedTags: verify.strippedTags || [],
+      hash: verify.hash || sanitizedHash,
+      threatScore: verify.threatScore || 0,
+      strippedTags: verify.strippedTags || [],
+    }
+
+    const sanitizedMap = new Map()
+    sanitized.forEach((s, idx) => {
+      if (s) sanitizedMap.set(idx, s)
+    })
+
+    renderResults(resultsEl, parsed, handleCleanSingle)
+    updateActionBar()
+    showToast(`Sanitized ${file.name} successfully.`, 'success')
+  } catch (err) {
+    showToast(`Failed to clean file: ${err.message}`, 'error')
+  }
+}
+
 resultsEl.addEventListener('click', (e) => {
   // Download sanitized file
   const downloadBtn = e.target.closest('[data-download-clean]')
@@ -568,50 +649,7 @@ resultsEl.addEventListener('click', (e) => {
   const cleanBtnEl = e.target.closest('[data-clean-file]')
   if (cleanBtnEl) {
     const index = Number(cleanBtnEl.getAttribute('data-clean-file'))
-    const file = parsed[index]
-    if (!file) return
-
-    ;(async () => {
-      try {
-        const cleanBuffer = await stripFile(file)
-
-        // Compute SHA-256 for the sanitized buffer.
-        const { readMetadata, sha256 } = await import('./modules/metadataReader.js')
-        const sanitizedHash = await sha256(cleanBuffer)
-
-        // Re-verification: parse the clean buffer to confirm zero tags remain.
-        const verify = await readMetadata(cleanBuffer)
-        const isVerified =
-          verify.threatScore === 0 &&
-          (verify.strippedTags || []).length === 0
-
-        sanitized[index] = {
-          ...file,
-          name: file.name,
-          type: file.type,
-          buffer: cleanBuffer,
-          sanitizedBuffer: cleanBuffer,
-          sanitizedSha256: sanitizedHash,
-          isSanitized: true,
-          verified: isVerified,
-          verifiedTags: verify.strippedTags || [],
-          hash: verify.hash || sanitizedHash,
-          threatScore: verify.threatScore || 0,
-          strippedTags: verify.strippedTags || [],
-        }
-
-        const sanitizedMap = new Map()
-        sanitized.forEach((s, idx) => {
-          if (s) sanitizedMap.set(idx, s)
-        })
-
-        renderResults(resultsEl, parsed, { sanitizedMap })
-        updateActionBar()
-        showToast('File sanitized and verified.', 'success')
-      } catch (err) {
-        showToast(`Failed to clean file: ${err.message}`, 'error')
-      }
-    })()
+    handleCleanSingle(index)
     return
   }
 })

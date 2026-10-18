@@ -1,7 +1,7 @@
 const activeUrls = new Set()
 
 export function revokeAllThumbnails() {
-  activeUrls.forEach(url => URL.revokeObjectURL(url))
+  activeUrls.forEach((url) => URL.revokeObjectURL(url))
   activeUrls.clear()
 }
 
@@ -85,8 +85,13 @@ export function renderResults(container, files, onCleanSingle) {
     afterTitle.textContent = 'AFTER — SANITIZED STATUS'
 
     const afterStatus = document.createElement('div')
-    afterStatus.setAttribute('class', file.isSanitized ? 'text-emerald-400 font-bold' : 'text-zinc-500')
-    afterStatus.textContent = file.isSanitized ? '✓ All Metadata Stripped (Lossless)' : 'Pending Sanitization'
+    if (file.isSanitized) {
+      afterStatus.setAttribute('class', 'text-emerald-400 font-bold')
+      afterStatus.textContent = 'Status: ✓ All Metadata Stripped'
+    } else {
+      afterStatus.setAttribute('class', 'text-zinc-500')
+      afterStatus.textContent = 'Status: Pending Sanitization'
+    }
 
     const afterSha = document.createElement('div')
     afterSha.setAttribute('class', 'text-zinc-400 truncate')
@@ -106,22 +111,14 @@ export function renderResults(container, files, onCleanSingle) {
     if (!file.isSanitized) {
       const cleanSingleBtn = document.createElement('button')
       cleanSingleBtn.setAttribute('class', 'px-4 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors')
+      cleanSingleBtn.setAttribute('data-clean-file', String(index))
       cleanSingleBtn.textContent = 'Clean This File'
-      cleanSingleBtn.onclick = () => onCleanSingle(index)
       cardFooter.appendChild(cleanSingleBtn)
     } else {
       const downloadSingleBtn = document.createElement('button')
       downloadSingleBtn.setAttribute('class', 'px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-colors')
+      downloadSingleBtn.setAttribute('data-download-clean', String(index))
       downloadSingleBtn.textContent = 'Download Sanitized File'
-      downloadSingleBtn.onclick = () => {
-        const b = new Blob([file.sanitizedBuffer], { type: file.type })
-        const u = URL.createObjectURL(b)
-        const a = document.createElement('a')
-        a.href = u
-        a.download = `ZeroTrace_Clean_${file.name}`
-        a.click()
-        setTimeout(() => URL.revokeObjectURL(u), 200)
-      }
       cardFooter.appendChild(downloadSingleBtn)
     }
 

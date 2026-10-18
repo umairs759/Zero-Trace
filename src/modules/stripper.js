@@ -9,82 +9,10 @@ export function generateCleanName(originalName, index = 1) {
   return `${base}_clean${ext}`
 }
 
-export async function stripFile(input) {
-  const { name, buffer } = input
-  let type = (input.type || '').toLowerCase()
-
-  if (!buffer) {
-    throw new Error(`Buffer missing for file: ${name}`)
-  }
-
-  const ext = (name.split('.').pop() || '').toLowerCase()
-  if (!type || type === 'application/octet-stream') {
-    if (['jpg', 'jpeg'].includes(ext)) type = 'image/jpeg'
-    else if (ext === 'png') type = 'image/png'
-    else if (ext === 'webp') type = 'image/webp'
-    else if (ext === 'pdf') type = 'application/pdf'
-  }
-
-  if (type === 'application/pdf' || ext === 'pdf') {
-    const cleanBuf = await stripPdf(buffer)
-    return { name, type: 'application/pdf', buffer: cleanBuf }
-  }
-
-  if (type === 'image/jpeg' || ['jpg', 'jpeg'].includes(ext)) {
-    const cleanBuf = stripJpeg(buffer)
-    return { name, type: 'image/jpeg', buffer: cleanBuf }
-  }
-
-  if (type === 'image/png' || type === 'image/webp' || ['png', 'webp'].includes(ext)) {
-    const cleanBuf = await stripCanvasFallback(buffer, type || 'image/png')
-    return { name, type: 'image/png', buffer: cleanBuf }
-  }
-
-  try {
-    const cleanBuf = await stripCanvasFallback(buffer, 'image/png')
-    return { name, type: 'image/png', buffer: cleanBuf }
-  } catch (e) {
-    throw new Error(`Unsupported file type: ${type || ext} (${name})`)
-  }
-}
-
-function stripCanvasFallback(buffer, mimeType) {
-  return new Promise((resolve, reject) => {
-    const blob = new Blob([buffer], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const img = new Image()
-
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas')
-        canvas.width = img.naturalWidth || img.width
-        canvas.height = img.naturalHeight || img.height
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0)
-        URL.revokeObjectURL(url)
-
-        canvas.toBlob((cleanBlob) => {
-          if (!cleanBlob) {
-            reject(new Error('Canvas conversion failed'))
-            return
-          }
-          cleanBlob.arrayBuffer().then(resolve).catch(reject)
-        }, 'image/png')
-      } catch (err) {
-        URL.revokeObjectURL(url)
-        reject(err)
-      }
-    }
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Image failed to decode'))
-    }
-
-    img.src = url
-  })
-}
-
+/**
+ * Robust JPEG stripper: removes APPn/COM segments at binary marker level.
+ * Throws if the buffer is not a valid JPEG (missing SOI marker).
+ */
 export function stripJpeg(buffer) {
   const data = new Uint8Array(buffer)
   const n = data.length
@@ -149,6 +77,102 @@ export function stripJpeg(buffer) {
   }
 
   return new Uint8Array(out).buffer
+}
+
+/**
+ * Canvas fallback: redraw pure pixels onto an OffscreenCanvas / standard canvas,
+ * permanently destroying all ancillary chunks (tEXt, zTXt, pHYs, EXIF, etc.).
+ */
+export async function stripCanvasFallback(buffer, mimeType = 'image/png') {
+  const blob = new Blob([buffer], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+
+  try {
+    const img = new Image()
+    img.src = url
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = () => reject(new Error('Image failed to decode'))
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth || img.width
+    canvas.height = img.naturalHeight || img.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0)
+
+    URL.revokeObjectURL(url)
+
+    const cleanBlob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('Canvas conversion failed'))),
+        'image/png'
+      )
+    })
+
+    return cleanBlob.arrayBuffer()
+  } catch (err) {
+    URL.revokeObjectURL(url)
+    throw err
+  }
+}
+
+/**
+ * Bulletproof sanitization dispatcher.
+ * 1. PDF → stripPdf()
+ * 2. JPEG → stripJpeg() first; on ANY error → stripCanvasFallback()
+ * 3. PNG/WebP → stripCanvasFallback()
+ * 4. Other → stripCanvasFallback()
+ * Always returns { name, type, buffer: ArrayBuffer }.
+ */
+export async function stripFile(input) {
+  const { name, buffer } = input
+  let type = (input.type || '').toLowerCase()
+
+  if (!buffer) {
+    throw new Error(`Buffer missing for file: ${name}`)
+  }
+
+  const ext = (name.split('.').pop() || '').toLowerCase()
+  if (!type || type === 'application/octet-stream') {
+    if (['jpg', 'jpeg'].includes(ext)) type = 'image/jpeg'
+    else if (ext === 'png') type = 'image/png'
+    else if (ext === 'webp') type = 'image/webp'
+    else if (ext === 'pdf') type = 'application/pdf'
+  }
+
+  // PDF path
+  if (type === 'application/pdf' || ext === 'pdf') {
+    const cleanBuf = await stripPdf(buffer)
+    return { name, type: 'application/pdf', buffer: cleanBuf }
+  }
+
+  // JPEG path: try lossless strip first, fall back to canvas on ANY error
+  if (type === 'image/jpeg' || ['jpg', 'jpeg'].includes(ext)) {
+    try {
+      const cleanBuf = stripJpeg(buffer)
+      return { name, type: 'image/jpeg', buffer: cleanBuf }
+    } catch (jpegErr) {
+      console.warn(`[ZeroTrace] JPEG marker strip failed for "${name}", falling back to canvas redraw:`, jpegErr.message)
+      const cleanBuf = await stripCanvasFallback(buffer, 'image/jpeg')
+      return { name, type: 'image/png', buffer: cleanBuf }
+    }
+  }
+
+  // PNG / WebP path
+  if (type === 'image/png' || type === 'image/webp' || ['png', 'webp'].includes(ext)) {
+    const cleanBuf = await stripCanvasFallback(buffer, type || 'image/png')
+    return { name, type: 'image/png', buffer: cleanBuf }
+  }
+
+  // Any other format: attempt canvas fallback as last resort
+  try {
+    const cleanBuf = await stripCanvasFallback(buffer, 'image/png')
+    return { name, type: 'image/png', buffer: cleanBuf }
+  } catch (e) {
+    throw new Error(`Unsupported file type: ${type || ext} (${name})`)
+  }
 }
 
 async function stripPdf(buffer) {
