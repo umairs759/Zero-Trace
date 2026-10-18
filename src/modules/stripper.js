@@ -148,6 +148,25 @@ export function stripJpeg(buffer) {
 }
 
 /**
+ * Generate an anonymous clean filename to prevent metadata leakage via
+ * camera filename prefixes. Format: ZeroTrace_Clean_NN.ext
+ * @param {string} originalName
+ * @param {number} index
+ * @param {string} mimeType
+ */
+export function generateCleanName(originalName, index, mimeType) {
+  const extMap = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.png', // canvas re-encode normalizes to PNG
+    'application/pdf': '.pdf',
+  }
+  const ext = extMap[mimeType] || '.bin'
+  const padded = String(index + 1).padStart(2, '0')
+  return `ZeroTrace_Clean_${padded}${ext}`
+}
+
+/**
  * Clear the PDF document info dictionary via pdf-lib.
  */
 async function stripPdf(buffer) {

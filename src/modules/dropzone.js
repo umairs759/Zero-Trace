@@ -1,6 +1,6 @@
 // ZeroTrace — Dropzone & ingestion module (T-004)
-// Drag & drop events, file validation, ArrayBuffer extraction.
-// 100% client-side; no network access.
+// Drag & drop, click-to-browse, Ctrl+V clipboard paste, file validation,
+// ArrayBuffer extraction. 100% client-side; no network access.
 
 import {
   MAX_FILE_SIZE,
@@ -33,14 +33,16 @@ export function showToast(message, type = 'error') {
 }
 
 /**
- * Dropzone class: handles drag-over/leave/drop, validates files, reads
- * them into ArrayBuffers and hands results back via callback.
+ * Dropzone class: handles drag-over/leave/drop, click-to-browse,
+ * Ctrl+V clipboard paste, validates files, reads them into ArrayBuffers
+ * and hands results back via callback.
  */
 export class Dropzone {
   constructor({ element, onFilesReady, onError }) {
     this.element = element
     this.onFilesReady = onFilesReady
     this.onError = onError
+    this.fileInput = null
     this.init()
   }
 
@@ -57,21 +59,38 @@ export class Dropzone {
 
     // Visual feedback while dragging over the dropzone.
     ;['dragenter', 'dragover'].forEach((name) => {
-      this.element.addEventListener(
-        name,
-        () => this.highlight(),
-        false
-      )
+      this.element.addEventListener(name, () => this.highlight(), false)
     })
     ;['dragleave', 'drop'].forEach((name) => {
-      this.element.addEventListener(
-        name,
-        () => this.unhighlight(),
-        false
-      )
+      this.element.addEventListener(name, () => this.unhighlight(), false)
     })
 
     this.element.addEventListener('drop', (e) => this.handleDrop(e), false)
+
+    // Click-to-browse: clicking anywhere on the dropzone opens the file picker.
+    this.element.addEventListener('click', () => this.browse(), false)
+
+    // Hidden file input for click-to-browse.
+    this.fileInput = document.createElement('input')
+    this.fileInput.type = 'file'
+    this.fileInput.multiple = true
+    this.fileInput.accept = ALLOWED_TYPES.join(',')
+    this.fileInput.style.display = 'none'
+    document.body.appendChild(this.fileInput)
+
+    this.fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || [])
+      this.processFiles(files)
+      // Reset input so same file can be re-selected next time.
+      this.fileInput.value = ''
+    })
+
+    // Global Ctrl+V clipboard paste handler.
+    window.addEventListener('paste', (e) => this.handlePaste(e), false)
+  }
+
+  browse() {
+    if (this.fileInput) this.fileInput.click()
   }
 
   highlight() {
@@ -92,10 +111,25 @@ export class Dropzone {
 
   async handleDrop(e) {
     const files = Array.from(e.dataTransfer.files)
+    this.processFiles(files)
+  }
 
+  async handlePaste(e) {
+    const items = Array.from(e.clipboardData.items || [])
+    const files = []
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) files.push(file)
+      }
+    }
+    if (files.length > 0) this.processFiles(files)
+  }
+
+  async processFiles(files) {
     // Circuit breaker: too many files at once.
     if (files.length > MAX_FILES) {
-      const msg = `Too many files (${files.length}). Maximum ${MAX_FILES} allowed per drop.`
+      const msg = `Too many files (${files.length}). Maximum ${MAX_FILES} allowed per batch.`
       if (this.onError) this.onError(msg)
       else showToast(msg, 'error')
       return

@@ -1,4 +1,4 @@
-# Execution Checklist
+# Execution Checklist — Enterprise Upgrade
 - [x] T-001: Initialize Vite + Vanilla JS + Tailwind CSS configuration.
 - [x] T-002: Install dependencies (`exifr`, `pdf-lib`, `jszip`, `lucide`).
 - [x] T-003: Setup index.html skeleton (Header, Dropzone area, Results grid, Action bar).
@@ -6,8 +6,14 @@
 - [x] T-005: Implement `src/modules/metadataReader.js` (Parse images with exifr, PDFs with pdf-lib).
 - [x] T-006: Implement `src/modules/uiRenderer.js` (Render metadata cards, color-code risk levels).
 - [x] T-007: Implement `src/modules/stripper.js` (Lossless APP chunk stripping for JPEGs + PDF dictionary sanitization).
-- [ ] T-008: Implement `src/modules/stripper.js` fallback (Canvas pixel redraw for PNG/WebP).
 - [x] T-008: Implement `src/modules/stripper.js` fallback (Canvas pixel redraw for PNG/WebP).
-- [ ] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
+- [x] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
 - [x] T-010: Write unit tests for the stripper module using Vitest.
 - [x] T-011: Configure `vite.config.js` and GitHub Actions for GitHub Pages deployment.
+- [x] E-01: Update `src/utils/constants.js` (Threat Score Weights + Risk Tiers).
+- [x] E-02: Refactor `src/modules/dropzone.js` (Click-to-browse + Ctrl+V clipboard paste).
+- [x] E-03: Update `src/modules/metadataReader.js` (Web Crypto SHA-256 + Threat Score engine).
+- [x] E-04: Refactor `src/modules/uiRenderer.js` (Cyber-Defense cards, risk badges, OSM links).
+- [x] E-05: Update `src/modules/stripper.js` (Anonymous file renaming + verified stripping).
+- [x] E-06: Update `src/modules/zipExporter.js` (`sanitization_report.json` audit manifest).
+- [x] E-07: Update `src/main.js` (Full pipeline wiring, `import './style.css'`, buffer preservation).

@@ -1,11 +1,21 @@
 # Active State Tracker
-- **Current Task**: All tasks complete (T-001 through T-011)
+- **Current Task**: All tasks complete (Base T-001–T-011 + Enterprise E-01–E-07)
 - **Decisions Log**: 
   - Opted for Vanilla JS to minimize overhead.
   - Opted for ArrayBuffer over Base64 to save memory on large files.
   - JPEG stripper removes all APPn (0xE0–0xEF) and COM segments; image data (SOF/DHT/DQT/SOS/entropy/EOI) preserved for lossless visual result.
   - PDF sanitization clears the info dictionary via pdf-lib (title/author/subject/creator/producer/keywords/dates).
-  - PNG/WebP use OffscreenCanvas pixel redraw re-encoded to PNG (metadata lost, pixels preserved).
+  - PNG/WebP use document.createElement('canvas') + Image pixel redraw re-encoded to PNG (metadata lost, pixels preserved).
   - All DOM rendering uses textContent only; no innerHTML anywhere.
   - Every Object URL revoked after download (200ms delay to let browser initiate).
+  - Threat Score: GPS +50, Device ID +30, Timestamps +15, Camera specs +15 (0–100 scale).
+  - SHA-256 fingerprints computed via native Web Crypto API (crypto.subtle.digest).
+  - Anonymous renaming: ZeroTrace_Clean_NN.ext to prevent filename metadata leakage.
+  - Audit report (sanitization_report.json) bundled in ZIP with ISO 8601 timestamp.
 - **Known Issues**: PDF creation/modification dates may remain in the trailer after info-dictionary clearing (pdf-lib limitation); canvas fallback re-encodes PNG/WebP to PNG (format change, not byte-identical).
+- **Constraints Verified**: 
+  - vite.config.js base: '/Zero-Trace/' (locked)
+  - .github/workflows/deploy.yml (untouched)
+  - src/main.js line 1: import './style.css' (locked)
+  - buffer: file.buffer preserved in state (locked)
+  - Zero innerHTML, zero fetch/XHR, zero localStorage/sessionStorage
