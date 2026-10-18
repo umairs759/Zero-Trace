@@ -148,6 +148,14 @@ export class Dropzone {
 
       try {
         const buffer = await this.readArrayBuffer(file)
+
+        // Compute SHA-256 immediately using native Web Crypto API.
+        const raw = buffer instanceof ArrayBuffer ? buffer : (buffer.buffer || buffer)
+        const digest = await crypto.subtle.digest('SHA-256', raw)
+        const sha256 = Array.from(new Uint8Array(digest))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+
         results.push({
           name: file.name,
           type: file.type,
@@ -155,6 +163,7 @@ export class Dropzone {
           label: FILE_TYPE_LABELS[file.type] || file.type,
           buffer,
           file,
+          sha256,
         })
       } catch (err) {
         const msg = `Failed to read "${file.name}": ${err.message}`

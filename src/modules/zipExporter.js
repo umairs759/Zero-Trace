@@ -6,7 +6,23 @@
 
 import JSZip from 'jszip'
 import { generateCleanName } from './stripper.js'
-import { sha256 } from './metadataReader.js'
+
+// Hex-encode a Uint8Array.
+function toHex(bytes) {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/**
+ * Compute SHA-256 digest of an ArrayBuffer via the native Web Crypto API.
+ * @param {ArrayBuffer} buffer
+ * @returns {Promise<string>} lowercase hex string
+ */
+export async function sha256(buffer) {
+  const digest = await crypto.subtle.digest('SHA-256', buffer)
+  return toHex(new Uint8Array(digest))
+}
 
 /**
  * Download a batch of sanitized files as a single ZIP archive,
