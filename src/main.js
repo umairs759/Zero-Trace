@@ -7,13 +7,17 @@ import { exportZip, downloadBlob } from './modules/zipExporter.js'
 const app = document.querySelector('#app')
 
 // ========================================================================
-// SHELL BUILD (strictly document.createElement / .textContent — no innerHTML)
+// REFERENCE EXISTING DOM ELEMENTS (from index.html)
 // ========================================================================
+
+const workbenchContainer = document.getElementById('workbench-container')
+const resultsEl = document.getElementById('results')
+const actionBarEl = document.getElementById('action-bar-container')
 
 // ---------- Header ----------
 const header = document.createElement('header')
 header.className =
-  'max-w-7xl mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50'
+  'max-w-6xl mx-auto px-4 py-6 flex items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50'
 
 const brand = document.createElement('div')
 brand.className = 'flex items-center gap-2'
@@ -39,7 +43,7 @@ brandIcon.appendChild(
 brand.appendChild(brandIcon)
 
 const brandTitle = document.createElement('span')
-brandTitle.className = 'text-xl font-black text-slate-100 tracking-tight'
+brandTitle.className = 'text-lg font-black text-zinc-100 tracking-tight'
 brandTitle.textContent = 'ZeroTrace'
 brand.appendChild(brandTitle)
 
@@ -58,15 +62,15 @@ header.appendChild(statusBadge)
 
 // ---------- Hero & Dropzone ----------
 const hero = document.createElement('section')
-hero.className = 'max-w-7xl mx-auto px-6 py-8 text-center'
+hero.className = 'max-w-6xl mx-auto px-4 py-10 text-center'
 
 const heroTitle = document.createElement('h1')
-heroTitle.className = 'text-3xl md:text-5xl font-black text-slate-100 tracking-tight mb-4'
+heroTitle.className = 'text-3xl md:text-5xl font-black text-zinc-100 tracking-tight mb-4'
 heroTitle.textContent = 'Metadata & EXIF Sanitizer'
 hero.appendChild(heroTitle)
 
 const heroSub = document.createElement('p')
-heroSub.className = 'text-slate-400 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed'
+heroSub.className = 'text-zinc-400 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed'
 heroSub.textContent =
   'Scrub hidden GPS coordinates, device serials, and tracking trails from images and PDFs in browser memory before publishing.'
 hero.appendChild(heroSub)
@@ -74,10 +78,10 @@ hero.appendChild(heroSub)
 const dropzone = document.createElement('section')
 dropzone.id = 'dropzone'
 dropzone.className =
-  'border-2 border-dashed border-slate-700 hover:border-emerald-500 bg-slate-900/60 rounded-3xl p-8 md:p-12 text-center transition-all cursor-pointer shadow-2xl relative mb-10'
+  'border-2 border-dashed border-zinc-700 hover:border-emerald-500 bg-zinc-900/60 rounded-2xl p-8 md:p-12 text-center transition-all cursor-pointer shadow-lg relative mb-8'
 
 const dropIconWrap = document.createElement('div')
-dropIconWrap.className = 'w-12 h-12 mx-auto mb-3 text-slate-500'
+dropIconWrap.className = 'w-12 h-12 mx-auto mb-3 text-zinc-500'
 dropIconWrap.appendChild(
   (() => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -97,14 +101,14 @@ dropIconWrap.appendChild(
 dropzone.appendChild(dropIconWrap)
 
 const dropHeading = document.createElement('h2')
-dropHeading.className = 'text-lg font-semibold text-slate-100 mb-2'
+dropHeading.className = 'text-lg font-semibold text-zinc-100 mb-2'
 dropHeading.textContent = 'Drop files here, paste from clipboard, or browse'
 dropzone.appendChild(dropHeading)
 
 const browseBtn = document.createElement('button')
 browseBtn.type = 'button'
 browseBtn.className =
-  'mt-4 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg transition-transform active:scale-95 inline-flex items-center gap-2'
+  'mt-4 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-xl shadow-lg transition-transform active:scale-95 inline-flex items-center gap-2'
 const browseIconWrap = document.createElement('span')
 browseIconWrap.className = 'w-4 h-4'
 browseIconWrap.appendChild(
@@ -141,7 +145,7 @@ const chips = [
 for (const chipText of chips) {
   const chip = document.createElement('span')
   chip.className =
-    'text-xs px-3 py-1.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700'
+    'text-[10px] px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700'
   chip.textContent = chipText
   dropChips.appendChild(chip)
 }
@@ -152,68 +156,57 @@ hero.appendChild(dropzone)
 // ---------- Format transparency note ----------
 const formatNote = document.createElement('p')
 formatNote.className =
-  'text-[10px] text-slate-500 font-mono mb-6 max-w-2xl mx-auto leading-relaxed'
+  'text-[10px] text-zinc-500 font-mono mb-8 max-w-2xl mx-auto leading-relaxed'
 formatNote.textContent =
   'Format realities: JPEG — lossless APP marker stripping (zero quality loss) • PNG/WebP — canvas pixel re-encode • PDF — dictionary & metadata stream wipe.'
 hero.appendChild(formatNote)
 
-// ---------- Results grid ----------
-const results = document.createElement('section')
-results.id = 'results'
-results.className = 'max-w-7xl mx-auto px-6'
-hero.appendChild(results)
-
-// ---------- Action bar (sticky bottom) ----------
-const actionBar = document.createElement('section')
-actionBar.id = 'action-bar'
-actionBar.className =
-  'fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-3 z-50 hidden'
-
+// ---------- Action bar buttons (injected into #action-bar-container) ----------
 const cleanBtn = document.createElement('button')
 cleanBtn.type = 'button'
 cleanBtn.className =
-  'px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500'
-cleanBtn.textContent = 'Clean 0 Files'
+  'px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-xl shadow-lg transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500'
+cleanBtn.textContent = 'Sanitize 0 Files'
 cleanBtn.disabled = true
 
 const zipBtn = document.createElement('button')
 zipBtn.type = 'button'
 zipBtn.className =
-  'px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500'
-zipBtn.textContent = 'Download Clean ZIP'
+  'px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-zinc-950 font-bold rounded-xl shadow-lg transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500'
+zipBtn.textContent = 'Download All as ZIP'
 zipBtn.disabled = true
 
 const resetBtn = document.createElement('button')
 resetBtn.type = 'button'
 resetBtn.className =
-  'px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
-resetBtn.textContent = 'Clear / Reset'
+  'px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+resetBtn.textContent = 'Clear / Reset Workspace'
 resetBtn.disabled = true
 
-actionBar.appendChild(cleanBtn)
-actionBar.appendChild(zipBtn)
-actionBar.appendChild(resetBtn)
+actionBarEl.appendChild(cleanBtn)
+actionBarEl.appendChild(zipBtn)
+actionBarEl.appendChild(resetBtn)
 
-// ---------- Documentation Section A: Threat Landscape ----------
+// ---------- Documentation section (below workspace) ----------
 const docs = document.createElement('section')
 docs.id = 'docs'
 docs.className =
-  'max-w-7xl mx-auto px-6 py-20 border-t border-slate-800'
+  'max-w-6xl mx-auto px-4 py-20 border-t border-zinc-800/80'
 
 const docsTitle = document.createElement('h2')
-docsTitle.className = 'text-2xl font-bold text-slate-100 mb-12 text-center tracking-tight'
+docsTitle.className = 'text-2xl font-bold text-zinc-100 mb-12 text-center tracking-tight'
 docsTitle.textContent = 'Forensic Documentation'
 docs.appendChild(docsTitle)
 
 const docsGrid = document.createElement('div')
-docsGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-12'
+docsGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-8'
 
-// Section A
+// Section A: Threat Landscape
 const sectionA = document.createElement('div')
-sectionA.className = 'bg-slate-900 border border-slate-800 rounded-2xl p-8'
+sectionA.className = 'bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-8 backdrop-blur-sm'
 
 const aTitle = document.createElement('h3')
-aTitle.className = 'text-lg font-bold text-slate-100 mb-6 flex items-center gap-2'
+aTitle.className = 'text-lg font-bold text-zinc-100 mb-6 flex items-center gap-2'
 const aIconWrap = document.createElement('span')
 aIconWrap.className = 'w-5 h-5 text-rose-500'
 aIconWrap.appendChild(
@@ -248,22 +241,22 @@ for (const itemText of aItems) {
   const item = document.createElement('div')
   item.className = 'flex items-start gap-3 mb-3'
   const dot = document.createElement('span')
-  dot.className = 'w-1 h-1 bg-slate-500 rounded-full mt-2 flex-shrink-0'
+  dot.className = 'w-1 h-1 bg-zinc-500 rounded-full mt-2 flex-shrink-0'
   item.appendChild(dot)
   const text = document.createElement('p')
-  text.className = 'text-sm text-slate-400 leading-relaxed'
+  text.className = 'text-sm text-zinc-400 leading-relaxed'
   text.textContent = itemText
   item.appendChild(text)
   sectionA.appendChild(item)
 }
 docsGrid.appendChild(sectionA)
 
-// Section B
+// Section B: Lossless vs Re-encode Transparency
 const sectionB = document.createElement('div')
-sectionB.className = 'bg-slate-900 border border-slate-800 rounded-2xl p-8'
+sectionB.className = 'bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-8 backdrop-blur-sm'
 
 const bTitle = document.createElement('h3')
-bTitle.className = 'text-lg font-bold text-slate-100 mb-6 flex items-center gap-2'
+bTitle.className = 'text-lg font-bold text-zinc-100 mb-6 flex items-center gap-2'
 const bIconWrap = document.createElement('span')
 bIconWrap.className = 'w-5 h-5 text-cyan-500'
 bIconWrap.appendChild(
@@ -284,35 +277,35 @@ bIconWrap.appendChild(
 )
 bTitle.appendChild(bIconWrap)
 const bTitleText = document.createElement('span')
-bTitleText.textContent = 'Section B — Who Needs This & Real-World Use Cases'
+bTitleText.textContent = 'Section B — Lossless vs Re-encode Transparency'
 bTitle.appendChild(bTitleText)
 sectionB.appendChild(bTitle)
 
 const bItems = [
-  'Whistleblowers and investigative journalists protecting source identities',
-  'Cybersecurity professionals conducting OSINT investigations without opsec leakage',
-  'Everyday individuals posting car photos, real estate, or marketplace sales',
+  'JPEGs: 100% Lossless APP chunk stripping (zero pixel re-compression)',
+  'PNG/WebP: Canvas pixel re-render (strips all tEXt, zTXt, pHYs chunks)',
+  'PDFs: Document catalog & XMP stream neutralization via pdf-lib',
 ]
 for (const itemText of bItems) {
   const item = document.createElement('div')
   item.className = 'flex items-start gap-3 mb-3'
   const dot = document.createElement('span')
-  dot.className = 'w-1 h-1 bg-slate-500 rounded-full mt-2 flex-shrink-0'
+  dot.className = 'w-1 h-1 bg-zinc-500 rounded-full mt-2 flex-shrink-0'
   item.appendChild(dot)
   const text = document.createElement('p')
-  text.className = 'text-sm text-slate-400 leading-relaxed'
+  text.className = 'text-sm text-zinc-400 leading-relaxed'
   text.textContent = itemText
   item.appendChild(text)
   sectionB.appendChild(item)
 }
 docsGrid.appendChild(sectionB)
 
-// Section C
+// Section C: Verify-It-Yourself Guide
 const sectionC = document.createElement('div')
-sectionC.className = 'bg-slate-900 border border-slate-800 rounded-2xl p-8'
+sectionC.className = 'bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-8 backdrop-blur-sm'
 
 const cTitle = document.createElement('h3')
-cTitle.className = 'text-lg font-bold text-slate-100 mb-6 flex items-center gap-2'
+cTitle.className = 'text-lg font-bold text-zinc-100 mb-6 flex items-center gap-2'
 const cIconWrap = document.createElement('span')
 cIconWrap.className = 'w-5 h-5 text-emerald-500'
 cIconWrap.appendChild(
@@ -333,38 +326,37 @@ cIconWrap.appendChild(
 )
 cTitle.appendChild(cIconWrap)
 const cTitleText = document.createElement('span')
-cTitleText.textContent = 'Section C — How to Verify Zero Telemetry Yourself'
+cTitleText.textContent = 'Section C — Verify-It-Yourself Guide (Zero Telemetry Proof)'
 cTitle.appendChild(cTitleText)
 sectionC.appendChild(cTitle)
 
 const cSteps = [
-  'Press F12 to open Developer Tools',
-  'Go to the Network tab',
-  'Drop an image or PDF into ZeroTrace',
-  'Observe zero outbound network requests',
-  'Disconnect Wi-Fi — the tool still works completely offline',
+  'Open Chrome/Firefox DevTools (F12)',
+  'Switch to the Network tab',
+  'Ingest a file and click Clean — notice 0 requests made',
+  'Disconnect internet/Wi-Fi — the tool still operates 100% offline',
 ]
 for (const stepText of cSteps) {
   const step = document.createElement('div')
   step.className = 'flex items-start gap-3 mb-3'
   const num = document.createElement('span')
-  num.className = 'w-5 h-5 rounded-full bg-emerald-500 text-slate-950 text-xs font-bold flex items-center justify-center flex-shrink-0'
+  num.className = 'w-5 h-5 rounded-full bg-emerald-500 text-zinc-950 text-xs font-bold flex items-center justify-center flex-shrink-0'
   num.textContent = String(cSteps.indexOf(stepText) + 1)
   step.appendChild(num)
   const text = document.createElement('p')
-  text.className = 'text-sm text-slate-400 leading-relaxed'
+  text.className = 'text-sm text-zinc-400 leading-relaxed'
   text.textContent = stepText
   step.appendChild(text)
   sectionC.appendChild(step)
 }
 docsGrid.appendChild(sectionC)
 
-// Section D
+// Section D: Realistic Boundaries
 const sectionD = document.createElement('div')
-sectionD.className = 'bg-slate-900 border border-slate-800 rounded-2xl p-8'
+sectionD.className = 'bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-8 backdrop-blur-sm'
 
 const dTitle = document.createElement('h3')
-dTitle.className = 'text-lg font-bold text-slate-100 mb-6 flex items-center gap-2'
+dTitle.className = 'text-lg font-bold text-zinc-100 mb-6 flex items-center gap-2'
 const dIconWrap = document.createElement('span')
 dIconWrap.className = 'w-5 h-5 text-amber-500'
 dIconWrap.appendChild(
@@ -385,12 +377,12 @@ dIconWrap.appendChild(
 )
 dTitle.appendChild(dIconWrap)
 const dTitleText = document.createElement('span')
-dTitleText.textContent = 'Section D — Realistic Limitations'
+dTitleText.textContent = 'Section D — Realistic Boundaries'
 dTitle.appendChild(dTitleText)
 sectionD.appendChild(dTitle)
 
 const dItems = [
-  'Metadata removal does not blur visible faces, license plates, or text written inside image pixels',
+  'ZeroTrace scrubs file headers and metadata, not visible faces, car plates, or watermark pixels inside the photo',
   'Canvas re-encode for PNG/WebP changes the file format (not byte-identical)',
   'PDF trailer dates may persist after info-dictionary clearing (pdf-lib limitation)',
 ]
@@ -398,10 +390,10 @@ for (const itemText of dItems) {
   const item = document.createElement('div')
   item.className = 'flex items-start gap-3 mb-3'
   const dot = document.createElement('span')
-  dot.className = 'w-1 h-1 bg-slate-500 rounded-full mt-2 flex-shrink-0'
+  dot.className = 'w-1 h-1 bg-zinc-500 rounded-full mt-2 flex-shrink-0'
   item.appendChild(dot)
   const text = document.createElement('p')
-  text.className = 'text-sm text-slate-400 leading-relaxed'
+  text.className = 'text-sm text-zinc-400 leading-relaxed'
   text.textContent = itemText
   item.appendChild(text)
   sectionD.appendChild(item)
@@ -413,9 +405,9 @@ docs.appendChild(docsGrid)
 // ---------- Footer ----------
 const footer = document.createElement('footer')
 footer.className =
-  'max-w-7xl mx-auto px-6 py-12 border-t border-slate-800 text-center'
+  'max-w-6xl mx-auto px-4 py-12 border-t border-zinc-800/80 text-center'
 const footerText = document.createElement('p')
-footerText.className = 'text-slate-500 text-sm'
+footerText.className = 'text-zinc-500 text-sm'
 footerText.textContent =
   'ZeroTrace runs 100% locally in your browser. No files are uploaded to any server. Designed for strict OPSEC, field journalism, and data privacy workflows.'
 footer.appendChild(footerText)
@@ -423,9 +415,10 @@ footer.appendChild(footerText)
 // ---------- Assemble ----------
 app.appendChild(header)
 app.appendChild(hero)
-app.appendChild(actionBar)
 app.appendChild(docs)
 app.appendChild(footer)
+
+// Note: #workbench-container, #results, #action-bar-container already exist in index.html
 
 // ========================================================================
 // STATE
@@ -435,16 +428,17 @@ let sanitized = [] // sanitized file results (paired by index with parsed)
 
 function updateActionBar() {
   const hasFiles = parsed.length > 0
-  const hasSanitized = sanitized.length > 0
+  const hasSanitized = sanitized.filter(Boolean).length > 0
 
   cleanBtn.disabled = !hasFiles
   zipBtn.disabled = !hasSanitized
   resetBtn.disabled = !hasFiles && !hasSanitized
 
-  // Dynamic button copy
-  cleanBtn.textContent = hasFiles ? `Clean ${parsed.length} File${parsed.length > 1 ? 's' : ''}` : 'Clean 0 Files'
+  cleanBtn.textContent = hasFiles
+    ? `Sanitize ${parsed.length} File${parsed.length > 1 ? 's' : ''}`
+    : 'Sanitize 0 Files'
 
-  actionBar.classList.toggle('hidden', !hasFiles)
+  actionBarEl.classList.toggle('hidden', !hasFiles)
 }
 
 // ========================================================================
@@ -467,7 +461,7 @@ const dz = new Dropzone({
         parsed.push(file)
       }
     }
-    renderResults(results, parsed, { sanitizedMap: new Map() })
+    renderResults(resultsEl, parsed, { sanitizedMap: new Map() })
     updateActionBar()
   },
   onError: (message) => {
@@ -531,7 +525,7 @@ cleanBtn.addEventListener('click', async () => {
     if (s) sanitizedMap.set(idx, s)
   })
 
-  renderResults(results, parsed, { sanitizedMap })
+  renderResults(resultsEl, parsed, { sanitizedMap })
   updateActionBar()
 })
 
@@ -544,18 +538,60 @@ zipBtn.addEventListener('click', () => {
 })
 
 // ========================================================================
-// PER-FILE DOWNLOAD (delegated)
+// PER-FILE ACTIONS (delegated)
 // ========================================================================
-results.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-download-clean]')
-  if (!btn) return
-  const index = Number(btn.getAttribute('data-download-clean'))
-  const file = sanitized[index]
-  if (!file) return
-  downloadBlob(
-    new Blob([file.buffer], { type: file.type }),
-    generateCleanName(file.originalName || file.name, index, file.type)
-  )
+resultsEl.addEventListener('click', (e) => {
+  // Download sanitized file
+  const downloadBtn = e.target.closest('[data-download-clean]')
+  if (downloadBtn) {
+    const index = Number(downloadBtn.getAttribute('data-download-clean'))
+    const file = sanitized[index]
+    if (!file) return
+    downloadBlob(
+      new Blob([file.buffer], { type: file.type }),
+      generateCleanName(file.originalName || file.name, index, file.type)
+    )
+    return
+  }
+
+  // Clean individual file
+  const cleanBtnEl = e.target.closest('[data-clean-file]')
+  if (cleanBtnEl) {
+    const index = Number(cleanBtnEl.getAttribute('data-clean-file'))
+    const file = parsed[index]
+    if (!file) return
+
+    ;(async () => {
+      try {
+        const clean = await stripFile(file)
+        const { readMetadata } = await import('./modules/metadataReader.js')
+        const verify = await readMetadata(clean)
+        const isVerified =
+          verify.threatScore === 0 &&
+          (verify.strippedTags || []).length === 0
+
+        sanitized[index] = {
+          ...clean,
+          originalName: file.name,
+          originalHash: file.hash,
+          verified: isVerified,
+          verifiedTags: verify.strippedTags || [],
+        }
+
+        const sanitizedMap = new Map()
+        sanitized.forEach((s, idx) => {
+          if (s) sanitizedMap.set(idx, s)
+        })
+
+        renderResults(resultsEl, parsed, { sanitizedMap })
+        updateActionBar()
+        showToast('File sanitized and verified.', 'success')
+      } catch (err) {
+        showToast(`Failed to clean file: ${err.message}`, 'error')
+      }
+    })()
+    return
+  }
 })
 
 // ========================================================================
@@ -565,7 +601,7 @@ resetBtn.addEventListener('click', () => {
   parsed = []
   sanitized = []
   revokeAllThumbnails()
-  renderResults(results, [], { sanitizedMap: new Map() })
+  renderResults(resultsEl, [], { sanitizedMap: new Map() })
   updateActionBar()
   showToast('Memory buffers cleared.', 'success')
 })

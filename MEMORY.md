@@ -1,19 +1,20 @@
-# Active State Tracker — Agency-Grade & Forensic Redesign
-- **Current Task**: All overhaul steps complete (Base T-001–T-011 + Agency AG-01–AG-10)
+# Active State Tracker — AstroWind-Style Forensic Workbench Rebuild
+- **Current Task**: All overhaul steps complete (Base T-001–T-011 + Rebuild AB-01–AB-05)
+- **Root Cause Fixed**: `main.js` was building all UI programmatically and appending to `#app`, but `index.html` only had an empty `#app`. Fixed by adding `#workbench-container`, `#results`, and `#action-bar-container` directly to `index.html`, and having `main.js` reference them via `document.getElementById()`.
 - **Decisions Log**: 
   - Vanilla JS + Vite for minimal bundle size and fastest binary parsing.
   - ArrayBuffer over Base64 to save memory on large files.
-  - JPEG stripper removes all APPn (0xE0–0xEF) and COM segments; image data (SOF/DHT/DQT/SOS/entropy/EOI) preserved losslessly.
-  - PDF sanitization clears info dictionary via pdf-lib (title/author/subject/creator/producer/keywords/dates).
+  - JPEG stripper removes all APPn (0xE0–0xEF) and COM segments; image data preserved losslessly.
+  - PDF sanitization clears info dictionary via pdf-lib.
   - PNG/WebP use document.createElement('canvas') + Image pixel redraw re-encoded to PNG.
   - All DOM rendering uses document.createElement() + .textContent; zero innerHTML for user data.
   - Every Object URL revoked: thumbnails on reset, download blobs after 200ms.
   - Threat Score: GPS +50, Device ID +30, Timestamps +15, Camera specs +15 (0–100 scale).
   - SHA-256 fingerprints via native Web Crypto API (crypto.subtle.digest).
-  - Re-verification: clean buffer re-parsed through readMetadata(); "Verified Clean" badge when 0 tags remain.
-  - Anonymous renaming: ZeroTrace_Clean_NN.ext to prevent filename metadata leakage.
+  - Re-verification: clean buffer re-parsed through readMetadata(); "VERIFIED CLEAN" badge when 0 tags remain.
   - Inline SVGs (1.5px stroke) replace all emojis; no external assets, no CDNs.
   - Real image thumbnails via URL.createObjectURL(new Blob([buffer])) with object-fit: cover.
+  - Tailwind v3 (installed version) — style.css uses @tailwind directives, not v4 @import/@theme.
 - **Constraints Verified**: 
   - vite.config.js base: '/Zero-Trace/' (locked, untouched)
   - .github/workflows/deploy.yml (locked, untouched)

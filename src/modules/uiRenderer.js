@@ -1,4 +1,4 @@
-// ZeroTrace — UI renderer (Agency-Grade)
+// ZeroTrace — UI renderer (AstroWind/Linear-tier workbench)
 // Strictly .textContent DOM construction — no innerHTML for user data.
 // Tracks thumbnail object URLs for revocation on reset.
 
@@ -43,7 +43,7 @@ export function clearResults(container) {
 }
 
 // ------------------------------------------------------------------
-// Inline SVG icons (2px stroke, no emojis, no external assets)
+// Inline SVG icons (1.5px stroke, no emojis, no external assets)
 // ------------------------------------------------------------------
 function createSvgIcon(pathData, className = 'w-5 h-5') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -73,26 +73,31 @@ const ICONS = {
   arrowRight: 'M5 12h14',
   leftRight: 'M17 9l-7 7 7 7',
   refresh: 'M1 4v6a1 1 0 0 0 1 1h6',
+  clean: 'M7 14l5-5 5 5',
 }
 
 /**
- * Render a single forensic file card with Before/After inspector.
+ * Render a single forensic file card with split Before/After diff.
  * @param {HTMLElement} container
  * @param {Object} result - parsed file result (original state)
  * @param {number} index - index in the parsed array (for sanitizedMap lookup)
- * @param {Object} options - { sanitizedMap: Map<number, Object>, onDownloadClean }
+ * @param {Object} options - { sanitizedMap: Map<number, Object> }
  */
 export function renderFileCard(container, result, index, options = {}) {
   const { sanitizedMap } = options
   const sanitizedResult = sanitizedMap ? sanitizedMap.get(index) : undefined
   const card = document.createElement('article')
   card.className =
-    'bg-slate-900 border border-slate-800 rounded-2xl p-5 overflow-hidden flex flex-col group hover:border-slate-600 transition-colors'
+    'bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-6 overflow-hidden flex flex-col hover:border-zinc-600/50 transition-colors backdrop-blur-sm'
 
-  // ---------- Thumbnail / file icon ----------
+  // ---------- Card Header: thumbnail + metadata ----------
+  const header = document.createElement('div')
+  header.className = 'flex flex-col md:flex-row md:items-center gap-4 mb-6'
+
+  // Thumbnail
   const thumb = document.createElement('div')
   thumb.className =
-    'flex items-center justify-center h-32 bg-slate-800/50 rounded-xl mb-3 border border-slate-800/50 relative overflow-hidden'
+    'flex items-center justify-center w-32 h-32 bg-zinc-800/50 rounded-xl border border-zinc-800/50 relative overflow-hidden shrink-0'
 
   if (result.kind === 'image' && result.buffer) {
     const img = document.createElement('img')
@@ -105,280 +110,340 @@ export function renderFileCard(container, result, index, options = {}) {
     thumb.appendChild(img)
   } else {
     const iconWrap = document.createElement('div')
-    iconWrap.className = 'text-slate-500'
+    iconWrap.className = 'text-zinc-500'
     iconWrap.appendChild(
-      createSvgIcon(ICONS[result.kind === 'pdf' ? 'file' : 'image'], 'w-10 h-10')
+      createSvgIcon(
+        ICONS[result.kind === 'pdf' ? 'file' : 'image'],
+        'w-10 h-10'
+      )
     )
     thumb.appendChild(iconWrap)
   }
-  card.appendChild(thumb)
+  header.appendChild(thumb)
 
-  // ---------- Header: name + size ----------
-  const header = document.createElement('div')
-  header.className = 'flex items-baseline justify-between gap-2 mb-2'
+  // File info
+  const info = document.createElement('div')
+  info.className = 'flex-1 min-w-0'
+
+  const nameRow = document.createElement('div')
+  nameRow.className = 'flex items-baseline gap-2 mb-1'
 
   const name = document.createElement('h3')
-  name.className = 'text-sm font-semibold text-slate-100 truncate'
+  name.className = 'text-base font-semibold text-zinc-100 truncate'
   name.textContent = result.file ? result.file.name : result.name || 'Unknown'
-  header.appendChild(name)
+  nameRow.appendChild(name)
 
-  const size = document.createElement('span')
-  size.className = 'text-xs text-slate-500 font-mono'
+  const formatTag = document.createElement('span')
+  formatTag.className =
+    'text-[10px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 px-2 py-0.5 rounded ml-2 flex-shrink-0'
+  formatTag.textContent =
+    (result.file && result.file.type && result.file.type.split('/').pop().toUpperCase()) ||
+    'FILE'
+  nameRow.appendChild(formatTag)
+
+  info.appendChild(nameRow)
+
+  const size = document.createElement('div')
+  size.className = 'text-xs text-zinc-500 font-mono'
   size.textContent = formatBytes(result.file ? result.file.size : result.size || 0)
-  header.appendChild(size)
+  info.appendChild(size)
 
-  card.appendChild(header)
+  header.appendChild(info)
 
-  // ---------- SHA-256 fingerprint ----------
+  // SHA-256 + Threat Score (right side)
+  const metaRight = document.createElement('div')
+  metaRight.className = 'flex flex-col gap-3 md:items-end'
+
   const hashRow = document.createElement('div')
-  hashRow.className = 'flex items-center gap-2 mb-2'
+  hashRow.className = 'flex items-center gap-2'
 
   const hashLabel = document.createElement('span')
-  hashLabel.className = 'text-[10px] text-slate-500 font-mono uppercase tracking-wider'
+  hashLabel.className = 'text-[10px] text-zinc-500 font-mono uppercase tracking-wider'
   hashLabel.textContent = 'SHA-256'
   hashRow.appendChild(hashLabel)
 
   const hashValue = document.createElement('code')
   hashValue.className =
-    'text-[10px] text-slate-300 font-mono truncate flex-1 max-w-[150px]'
+    'text-[10px] text-zinc-300 font-mono truncate max-w-[140px]'
   hashValue.textContent = truncateHash(result.hash)
   hashRow.appendChild(hashValue)
 
   const hashCopy = document.createElement('button')
   hashCopy.className =
-    'text-[10px] text-slate-500 hover:text-emerald-400 transition-colors p-1.5 rounded hover:bg-slate-800'
+    'text-[10px] text-zinc-500 hover:text-emerald-400 transition-colors p-1.5 rounded hover:bg-zinc-800'
   hashCopy.textContent = 'copy'
   hashCopy.title = 'Copy SHA-256 fingerprint'
   hashRow.appendChild(hashCopy)
 
-  card.appendChild(hashRow)
+  metaRight.appendChild(hashRow)
 
-  // ---------- Threat Score meter ----------
   const tier = result.riskTier || getRiskTier(0)
   const score = result.threatScore || 0
 
-  const scoreLabel = document.createElement('div')
-  scoreLabel.className = 'flex items-center justify-between mb-1'
+  const scoreRow = document.createElement('div')
+  scoreRow.className = 'flex items-center gap-2'
+
   const scoreText = document.createElement('span')
-  scoreText.className = 'text-xs font-bold text-slate-300 uppercase tracking-wider'
+  scoreText.className = 'text-xs font-bold text-zinc-300 uppercase tracking-wider'
   scoreText.textContent = `Threat Score — ${score}/100`
-  scoreLabel.appendChild(scoreText)
+  scoreRow.appendChild(scoreText)
 
   const scoreTier = document.createElement('span')
   scoreTier.className = `text-[10px] font-bold px-2 py-0.5 rounded border ${tier.badge}`
   scoreTier.textContent = tier.label
-  scoreLabel.appendChild(scoreTier)
+  scoreRow.appendChild(scoreTier)
 
-  card.appendChild(scoreLabel)
+  metaRight.appendChild(scoreRow)
 
   const progressBar = document.createElement('div')
-  progressBar.className = 'w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3'
+  progressBar.className = 'w-full h-1 bg-zinc-800 rounded-full overflow-hidden'
   const progressFill = document.createElement('div')
   const bgClass = tier.badge.split(' ')[0]
   progressFill.className = `h-full ${bgClass} transition-all duration-500`
   progressFill.style.width = `${Math.min(score, 100)}%`
   progressBar.appendChild(progressFill)
-  card.appendChild(progressBar)
+  metaRight.appendChild(progressBar)
 
-  // ---------- Before vs After metadata inspector ----------
+  header.appendChild(metaRight)
+  card.appendChild(header)
+
+  // ---------- Before vs After Diff Matrix ----------
   const inspector = document.createElement('div')
-  inspector.className = 'mt-3 border border-slate-800 rounded-xl overflow-hidden'
+  inspector.className = 'mt-2 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/50'
 
   const inspectorHeader = document.createElement('div')
   inspectorHeader.className =
-    'bg-slate-800/50 px-3 py-2 border-b border-slate-800 flex items-center justify-between'
+    'bg-zinc-800/40 px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between'
   const inspectorTitle = document.createElement('span')
-  inspectorTitle.className = 'text-[10px] font-bold text-slate-400 uppercase tracking-wider'
-  inspectorTitle.textContent = 'Before vs After'
+  inspectorTitle.className = 'text-[10px] font-bold text-zinc-400 uppercase tracking-wider'
+  inspectorTitle.textContent = 'Metadata Diff — Before vs After'
   inspectorHeader.appendChild(inspectorTitle)
 
   const verifiedBadge = document.createElement('span')
-  verifiedBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 hidden'
-  verifiedBadge.textContent = 'Verified Clean'
+  verifiedBadge.className =
+    'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 hidden'
+  verifiedBadge.textContent = 'VERIFIED CLEAN'
   inspectorHeader.appendChild(verifiedBadge)
 
   inspector.appendChild(inspectorHeader)
 
   const inspectorBody = document.createElement('div')
-  inspectorBody.className = 'px-3 py-3'
+  inspectorBody.className = 'p-4 grid grid-cols-1 md:grid-cols-2 gap-4'
 
-  // Before tags
-  const beforeSection = document.createElement('div')
-  beforeSection.className = 'mb-3'
+  // Column 1: Before (Original)
+  const beforeCol = document.createElement('div')
+  beforeCol.className = 'flex flex-col gap-3'
 
   const beforeLabel = document.createElement('div')
-  beforeLabel.className = 'text-[10px] text-rose-500 font-mono uppercase tracking-wider mb-1 flex items-center gap-1'
-  const alertIcon = createSvgIcon(ICONS.alert, 'w-3 h-3')
-  alertIcon.className += ' text-rose-500'
-  beforeLabel.appendChild(alertIcon)
+  beforeLabel.className = 'flex items-center gap-2'
   const beforeText = document.createElement('span')
-  beforeText.textContent = 'Before Sanitization'
+  beforeText.className = 'text-[10px] font-bold text-rose-500 uppercase tracking-wider'
+  beforeText.textContent = 'Before — Original Ingested Data'
   beforeLabel.appendChild(beforeText)
-  beforeSection.appendChild(beforeLabel)
+  beforeCol.appendChild(beforeLabel)
 
   const beforeList = document.createElement('div')
-  beforeList.className = 'grid grid-cols-2 gap-1 text-[10px] leading-tight'
+  beforeList.className = 'grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]'
 
   const beforeTags = result.strippedTags || []
-  if (beforeTags.length === 0) {
+  const beforeExif = result.exif || {}
+  const beforePdf = result.pdfInfo || {}
+
+  // Build before entries
+  const beforeEntries = []
+  if (beforeTags.includes('GPS Coordinates')) {
+    beforeEntries.push(['GPS Latitude', beforeExif.latitude != null ? beforeExif.latitude.toFixed(6) : '—'])
+    beforeEntries.push(['GPS Longitude', beforeExif.longitude != null ? beforeExif.longitude.toFixed(6) : '—'])
+  }
+  if (beforeTags.includes('Device Serial / Unique ID')) {
+    beforeEntries.push(['Serial Number', beforeExif.serialNumber || '—'])
+  }
+  if (beforeTags.includes('Timestamps')) {
+    beforeEntries.push(['Date Taken', beforeExif.dateTimeOriginal || '—'])
+    beforeEntries.push(['Modify Date', beforeExif.modifyDate || '—'])
+  }
+  if (beforeTags.includes('Camera / Software specs')) {
+    beforeEntries.push(['Camera Make', beforeExif.make || '—'])
+    beforeEntries.push(['Camera Model', beforeExif.model || '—'])
+    beforeEntries.push(['Software', beforeExif.software || '—'])
+  }
+  if (beforePdf.title) beforeEntries.push(['PDF Title', beforePdf.title])
+  if (beforePdf.author) beforeEntries.push(['PDF Author', beforePdf.author])
+  if (beforePdf.creator) beforeEntries.push(['PDF Creator', beforePdf.creator])
+  if (beforePdf.producer) beforeEntries.push(['PDF Producer', beforePdf.producer])
+
+  if (beforeEntries.length === 0) {
     const empty = document.createElement('span')
-    empty.className = 'col-span-2 text-slate-500 italic'
+    empty.className = 'col-span-2 text-zinc-500 italic'
     empty.textContent = 'No metadata detected'
     beforeList.appendChild(empty)
   } else {
-    for (const tag of beforeTags) {
+    for (const [label, value] of beforeEntries) {
       const k = document.createElement('dt')
-      k.className = 'text-slate-500'
-      k.textContent = tag
+      k.className = 'text-zinc-500'
+      k.textContent = label
 
       const v = document.createElement('dd')
-      v.className = 'text-rose-300 font-mono'
-      v.textContent = 'DETECTED'
+      v.className = 'text-zinc-200 font-mono truncate'
+      v.textContent = String(value)
 
       beforeList.appendChild(k)
       beforeList.appendChild(v)
     }
   }
-  beforeSection.appendChild(beforeList)
-  inspectorBody.appendChild(beforeSection)
+  beforeCol.appendChild(beforeList)
 
-  // After tags (re-verification)
-  const afterSection = document.createElement('div')
+  // GPS warning banner
+  if (result.gps) {
+    const gpsBanner = document.createElement('div')
+    gpsBanner.className =
+      'mt-3 rounded-lg bg-rose-900/20 border border-rose-500/30 p-3'
+
+    const gpsLabel = document.createElement('div')
+    gpsLabel.className = 'text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1'
+    const alertIcon = createSvgIcon(ICONS.alert, 'w-3 h-3')
+    alertIcon.className += ' text-rose-400'
+    gpsLabel.appendChild(alertIcon)
+    const gpsText = document.createElement('span')
+    gpsText.textContent = 'EXACT LOCATION EXPOSED'
+    gpsLabel.appendChild(gpsText)
+    gpsBanner.appendChild(gpsLabel)
+
+    const gpsValue = document.createElement('div')
+    gpsValue.className = 'text-xs text-zinc-200 font-mono'
+    gpsValue.textContent = `Lat: ${result.gps.latitude.toFixed(6)}  •  Lon: ${result.gps.longitude.toFixed(6)}`
+    gpsBanner.appendChild(gpsValue)
+
+    beforeCol.appendChild(gpsBanner)
+  }
+
+  inspectorBody.appendChild(beforeCol)
+
+  // Column 2: After (Sanitized)
+  const afterCol = document.createElement('div')
+  afterCol.className = 'flex flex-col gap-3'
 
   const afterLabel = document.createElement('div')
-  afterLabel.className = 'text-[10px] text-emerald-500 font-mono uppercase tracking-wider mb-1 flex items-center gap-1'
-  const checkIcon = createSvgIcon(ICONS.check, 'w-3 h-3')
-  checkIcon.className += ' text-emerald-500'
-  afterLabel.appendChild(checkIcon)
+  afterLabel.className = 'flex items-center gap-2'
   const afterText = document.createElement('span')
-  afterText.textContent = 'After Sanitization (Re-Verified)'
+  afterText.className = 'text-[10px] font-bold text-emerald-400 uppercase tracking-wider'
+  afterText.textContent = 'After — Sanitized Status'
   afterLabel.appendChild(afterText)
-  afterSection.appendChild(afterLabel)
+  afterCol.appendChild(afterLabel)
 
   const afterList = document.createElement('div')
-  afterList.className = 'grid grid-cols-2 gap-1 text-[10px] leading-tight'
+  afterList.className = 'grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]'
 
-  const afterTags = sanitizedResult ? (sanitizedResult.strippedTags || []) : []
-  const isVerified = sanitizedResult && (sanitizedResult.threatScore || 0) === 0 && afterTags.length === 0
+  const isVerified =
+    sanitizedResult &&
+    (sanitizedResult.threatScore || 0) === 0 &&
+    (sanitizedResult.strippedTags || []).length === 0
 
-  if (isVerified) {
-    const verifiedRow = document.createElement('div')
-    verifiedRow.className = 'col-span-2 flex items-center gap-1 text-emerald-400 font-mono text-[10px]'
+  if (!sanitizedResult) {
+    const pending = document.createElement('span')
+    pending.className = 'col-span-2 text-zinc-500 italic'
+    pending.textContent = 'Pending Sanitization'
+    afterList.appendChild(pending)
+  } else if (isVerified) {
+    const cleanRow = document.createElement('div')
+    cleanRow.className = 'col-span-2 flex items-center gap-2 text-emerald-400 font-mono text-[10px]'
     const check = createSvgIcon(ICONS.check, 'w-3 h-3')
     check.className += ' text-emerald-400'
-    verifiedRow.appendChild(check)
-    const verifiedText = document.createElement('span')
-    verifiedText.textContent = '0 tags remaining — clean'
-    verifiedRow.appendChild(verifiedText)
-    afterList.appendChild(verifiedRow)
+    cleanRow.appendChild(check)
+    const cleanText = document.createElement('span')
+    cleanText.textContent = 'All tags stripped — VERIFIED CLEAN'
+    cleanRow.appendChild(cleanText)
+    afterList.appendChild(cleanRow)
     verifiedBadge.classList.remove('hidden')
-  } else if (afterTags.length === 0) {
-    const empty = document.createElement('span')
-    empty.className = 'col-span-2 text-slate-500 italic'
-    empty.textContent = 'No metadata detected'
-    afterList.appendChild(empty)
   } else {
-    for (const tag of afterTags) {
-      const k = document.createElement('dt')
-      k.className = 'text-slate-500'
-      k.textContent = tag
+    const afterTags = sanitizedResult.strippedTags || []
+    if (afterTags.length === 0) {
+      const empty = document.createElement('span')
+      empty.className = 'col-span-2 text-zinc-500 italic'
+      empty.textContent = 'No metadata detected'
+      afterList.appendChild(empty)
+    } else {
+      for (const tag of afterTags) {
+        const k = document.createElement('dt')
+        k.className = 'text-zinc-500'
+        k.textContent = tag
 
-      const v = document.createElement('dd')
-      v.className = 'text-rose-300 font-mono'
-      v.textContent = 'REMAINING'
+        const v = document.createElement('dd')
+        v.className = 'text-rose-300 font-mono'
+        v.textContent = 'REMAINING'
 
-      afterList.appendChild(k)
-      afterList.appendChild(v)
+        afterList.appendChild(k)
+        afterList.appendChild(v)
+      }
     }
   }
-  afterSection.appendChild(afterList)
-  inspectorBody.appendChild(afterSection)
+  afterCol.appendChild(afterList)
 
-  // SHA-256 comparison
+  // SHA-256 comparison (after column)
   const hashCompare = document.createElement('div')
-  hashCompare.className = 'mt-3 pt-3 border-t border-slate-800'
+  hashCompare.className = 'mt-4 pt-4 border-t border-zinc-800/80'
 
   const hashCompareLabel = document.createElement('div')
-  hashCompareLabel.className = 'text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2'
+  hashCompareLabel.className = 'text-[10px] text-zinc-500 font-mono uppercase tracking-wider mb-2'
   hashCompareLabel.textContent = 'Cryptographic Comparison'
   hashCompare.appendChild(hashCompareLabel)
 
   const hashRows = [
-    ['Original SHA-256', result.hash],
-    ['Sanitized SHA-256', sanitizedResult ? sanitizedResult.hash : '—'],
+    ['Original', result.hash],
+    ['Sanitized', sanitizedResult ? sanitizedResult.hash : '—'],
   ]
   for (const [label, value] of hashRows) {
     const row = document.createElement('div')
     row.className = 'flex items-center justify-between gap-2 mb-1'
 
     const lbl = document.createElement('span')
-    lbl.className = 'text-[10px] text-slate-500 font-mono'
+    lbl.className = 'text-[10px] text-zinc-500 font-mono'
     lbl.textContent = label
     row.appendChild(lbl)
 
     const val = document.createElement('code')
     val.className =
-      'text-[10px] font-mono truncate max-w-[140px] ' +
-      (label === 'Sanitized SHA-256' && isVerified ? 'text-emerald-400' : 'text-slate-300')
+      'text-[10px] font-mono truncate max-w-[130px] ' +
+      (label === 'Sanitized' && isVerified ? 'text-emerald-400' : 'text-zinc-300')
     val.textContent = truncateHash(value)
     row.appendChild(val)
     hashCompare.appendChild(row)
   }
-  inspectorBody.appendChild(hashCompare)
+  afterCol.appendChild(hashCompare)
 
+  inspectorBody.appendChild(afterCol)
   inspector.appendChild(inspectorBody)
   card.appendChild(inspector)
 
-  // ---------- GPS Location card ----------
-  if (result.gps) {
-    const gpsCard = document.createElement('div')
-    gpsCard.className =
-      'mt-2 rounded-xl bg-rose-900/30 border border-rose-500/30 p-3'
+  // ---------- Card Actions ----------
+  const actions = document.createElement('div')
+  actions.className = 'mt-6 flex flex-col sm:flex-row sm:items-end gap-3 pt-4 border-t border-zinc-800/80'
 
-    const gpsLabel = document.createElement('div')
-    gpsLabel.className = 'text-[10px] text-rose-400 font-mono uppercase tracking-wider mb-1 flex items-center gap-1'
-    gpsLabel.textContent = 'GPS Telemetry Detected'
-    gpsCard.appendChild(gpsLabel)
-
-    const gpsValue = document.createElement('div')
-    gpsValue.className = 'text-xs text-rose-100 font-mono mb-2 break-all'
-    gpsValue.textContent = `Lat: ${result.gps.latitude.toFixed(6)}  •  Lon: ${result.gps.longitude.toFixed(6)}`
-    gpsCard.appendChild(gpsValue)
-
-    if (result.gps.osmUrl) {
-      const osmBtn = document.createElement('button')
-      osmBtn.className =
-        'w-full text-[10px] text-emerald-400 hover:text-emerald-300 underline decoration-1 decoration-emerald-500/30 hover:decoration-emerald-400 transition-all py-2 rounded bg-emerald-900/20 border border-emerald-900/30 text-left'
-      osmBtn.textContent = 'View on OpenStreetMap'
-      osmBtn.title = 'View location on OpenStreetMap'
-      osmBtn.addEventListener('click', () => {
-        window.open(result.gps.osmUrl, '_blank', 'noopener,noreferrer')
-      })
-      gpsCard.appendChild(osmBtn)
-    }
-
-    card.appendChild(gpsCard)
-  }
-
-  // ---------- Per-file download ----------
   if (sanitizedResult) {
-    const downloadRow = document.createElement('div')
-    downloadRow.className = 'mt-3'
-
     const downloadBtn = document.createElement('button')
     downloadBtn.className =
-      'w-full text-[10px] text-cyan-400 hover:text-cyan-300 underline decoration-1 decoration-cyan-500/30 hover:decoration-cyan-400 transition-all py-2 rounded bg-cyan-900/20 border border-cyan-900/30 text-left flex items-center gap-2'
+      'w-full sm:w-auto px-4 py-2.5 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 underline decoration-1 decoration-cyan-500/30 hover:decoration-cyan-400 transition-all rounded bg-cyan-900/20 border border-cyan-900/30 text-left flex items-center gap-2'
     downloadBtn.setAttribute('data-download-clean', String(index))
     const downIcon = createSvgIcon(ICONS.download, 'w-3 h-3 text-cyan-400')
     downloadBtn.appendChild(downIcon)
     const downLabel = document.createElement('span')
-    downLabel.textContent = `Download Clean File`
+    downLabel.textContent = 'Download Sanitized File'
     downloadBtn.appendChild(downLabel)
-    downloadRow.appendChild(downloadBtn)
-
-    card.appendChild(downloadRow)
+    actions.appendChild(downloadBtn)
   }
 
+  const cleanBtn = document.createElement('button')
+  cleanBtn.className =
+    'w-full sm:w-auto px-4 py-2.5 text-[11px] font-bold text-zinc-100 hover:text-zinc-50 transition-colors rounded bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center gap-2'
+  cleanBtn.setAttribute('data-clean-file', String(index))
+  const cleanIcon = createSvgIcon(ICONS.clean, 'w-3 h-3')
+  cleanBtn.appendChild(cleanIcon)
+  const cleanLabel = document.createElement('span')
+  cleanLabel.textContent = sanitizedResult ? 'Re-Clean This File' : 'Clean This File'
+  cleanBtn.appendChild(cleanLabel)
+  actions.appendChild(cleanBtn)
+
+  card.appendChild(actions)
   container.appendChild(card)
 }
 
@@ -390,19 +455,19 @@ export function renderResults(container, results, options = {}) {
 
   if (!results || results.length === 0) {
     const empty = document.createElement('p')
-    empty.className = 'text-slate-500 text-sm text-center py-8'
+    empty.className = 'text-zinc-500 text-sm text-center py-12'
     empty.textContent = 'No files parsed yet. Drop an image or PDF to begin.'
     container.appendChild(empty)
     return
   }
 
   const count = document.createElement('p')
-  count.className = 'text-xs text-slate-500 mb-4 font-mono'
-  count.textContent = `${results.length} file(s) parsed`
+  count.className = 'text-xs text-zinc-500 mb-6 font-mono'
+  count.textContent = `${results.length} file(s) staged for sanitization`
   container.appendChild(count)
 
   const grid = document.createElement('div')
-  grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+  grid.className = 'space-y-6'
   for (let i = 0; i < results.length; i++) {
     renderFileCard(grid, results[i], i, options)
   }

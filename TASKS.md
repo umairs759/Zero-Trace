@@ -1,4 +1,4 @@
-# Execution Checklist — Agency-Grade & Forensic Redesign
+# Execution Checklist — AstroWind-Style Forensic Workbench Rebuild
 - [x] T-001: Initialize Vite + Vanilla JS + Tailwind CSS configuration.
 - [x] T-002: Install dependencies (`exifr`, `pdf-lib`, `jszip`, `lucide`).
 - [x] T-003: Setup index.html skeleton (Header, Dropzone area, Results grid, Action bar).
@@ -10,13 +10,8 @@
 - [x] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
 - [x] T-010: Write unit tests for the stripper module using Vitest.
 - [x] T-011: Configure `vite.config.js` and GitHub Actions for GitHub Pages deployment.
-- [x] AG-01: Fix credibility overclaims (removed "Air-Gapped", "GDPR/HIPAA"; added format transparency).
-- [x] AG-02: Replace all emojis with inline SVGs (1.5px stroke, consistent throughout).
-- [x] AG-03: Render real image thumbnails via URL.createObjectURL + object-fit: cover.
-- [x] AG-04: Before/After metadata inspector with threat breakdown (+50 GPS, +30 Serial, +15 Timestamps, +15 Camera).
-- [x] AG-05: Re-Verification step — re-parse clean buffer, "Verified Clean" badge when 0 tags remain.
-- [x] AG-06: SHA-256 cryptographic comparison (Original vs Sanitized).
-- [x] AG-07: Per-file "Download Clean File" button on each card (data-download-clean delegation).
-- [x] AG-08: Dynamic bottom action bar ("Clean N Files", disabled when empty).
-- [x] AG-09: Documentation sections A-D (Threat Landscape, Use Cases, Verify Zero Telemetry, Limitations).
-- [x] AG-10: Object URL revocation for thumbnails on reset + blob revocation on download.
+- [x] AB-01: Root-cause fix — index.html now has #workbench-container, #results, #action-bar_container.
+- [x] AB-02: Rewrote uiRenderer.js — split Before/After diff cards, real thumbnails, risk gauges, all .textContent.
+- [x] AB-03: Rewrote main.js — references existing DOM elements, per-file clean/download, documentation sections.
+- [x] AB-04: Fixed style.css — Tailwind v3 compatible (removed v4 @import/@theme syntax).
+- [x] AB-05: Verified build passes with zero errors.
