@@ -1,4 +1,4 @@
-# Execution Checklist — Enterprise Upgrade
+# Execution Checklist — Enterprise Production Web Suite
 - [x] T-001: Initialize Vite + Vanilla JS + Tailwind CSS configuration.
 - [x] T-002: Install dependencies (`exifr`, `pdf-lib`, `jszip`, `lucide`).
 - [x] T-003: Setup index.html skeleton (Header, Dropzone area, Results grid, Action bar).
@@ -10,10 +10,10 @@
 - [x] T-009: Implement `src/modules/zipExporter.js` (Batch download logic).
 - [x] T-010: Write unit tests for the stripper module using Vitest.
 - [x] T-011: Configure `vite.config.js` and GitHub Actions for GitHub Pages deployment.
-- [x] E-01: Update `src/utils/constants.js` (Threat Score Weights + Risk Tiers).
-- [x] E-02: Refactor `src/modules/dropzone.js` (Click-to-browse + Ctrl+V clipboard paste).
-- [x] E-03: Update `src/modules/metadataReader.js` (Web Crypto SHA-256 + Threat Score engine).
-- [x] E-04: Refactor `src/modules/uiRenderer.js` (Cyber-Defense cards, risk badges, OSM links).
-- [x] E-05: Update `src/modules/stripper.js` (Anonymous file renaming + verified stripping).
-- [x] E-06: Update `src/modules/zipExporter.js` (`sanitization_report.json` audit manifest).
-- [x] E-07: Update `src/main.js` (Full pipeline wiring, `import './style.css'`, buffer preservation).
+- [x] OV-01: Re-scaffold `index.html` (Header, Hero, Dropzone w/ Browse button, Results, Features, Matrix, Footer).
+- [x] OV-02: Refactor `src/modules/dropzone.js` (Browse button + Ctrl+V clipboard paste).
+- [x] OV-03: Refactor `src/modules/uiRenderer.js` (Threat score meters, SHA-256, OSM links, .textContent).
+- [x] OV-04: Update `src/main.js` (Full dashboard shell, `import './style.css'`, buffer preservation).
+- [x] OV-05: Verify `src/modules/zipExporter.js` includes `sanitization_report.json`.
+- [x] OV-06: Run `npx vitest run` — 4/4 tests pass.
+- [x] OV-07: Run `npm run build` — dist/ builds with zero errors.

@@ -67,7 +67,7 @@ export class Dropzone {
 
     this.element.addEventListener('drop', (e) => this.handleDrop(e), false)
 
-    // Click-to-browse: clicking anywhere on the dropzone opens the file picker.
+    // Clicking the dropzone triggers the hidden file input.
     this.element.addEventListener('click', () => this.browse(), false)
 
     // Hidden file input for click-to-browse.
@@ -75,7 +75,8 @@ export class Dropzone {
     this.fileInput.type = 'file'
     this.fileInput.multiple = true
     this.fileInput.accept = ALLOWED_TYPES.join(',')
-    this.fileInput.style.display = 'none'
+    this.fileInput.className = 'hidden'
+    this.fileInput.setAttribute('aria-hidden', 'true')
     document.body.appendChild(this.fileInput)
 
     this.fileInput.addEventListener('change', (e) => {
@@ -89,6 +90,7 @@ export class Dropzone {
     window.addEventListener('paste', (e) => this.handlePaste(e), false)
   }
 
+  /** Programmatically open the native file picker. */
   browse() {
     if (this.fileInput) this.fileInput.click()
   }
