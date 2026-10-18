@@ -1,5 +1,14 @@
 import { PDFDocument } from 'pdf-lib'
 
+export function generateCleanName(originalName, index = 1) {
+  if (!originalName) return `ZeroTrace_Clean_${index}`
+  const lastDot = originalName.lastIndexOf('.')
+  if (lastDot === -1) return `${originalName}_clean`
+  const base = originalName.substring(0, lastDot)
+  const ext = originalName.substring(lastDot)
+  return `${base}_clean${ext}`
+}
+
 export async function stripFile(input) {
   const { name, buffer } = input
   let type = (input.type || '').toLowerCase()
@@ -8,7 +17,6 @@ export async function stripFile(input) {
     throw new Error(`Buffer missing for file: ${name}`)
   }
 
-  // Fallback check by file extension if MIME type is empty or generic
   const ext = (name.split('.').pop() || '').toLowerCase()
   if (!type || type === 'application/octet-stream') {
     if (['jpg', 'jpeg'].includes(ext)) type = 'image/jpeg'
@@ -32,7 +40,6 @@ export async function stripFile(input) {
     return { name, type: 'image/png', buffer: cleanBuf }
   }
 
-  // Generic fallback: try canvas redraw for any other image
   try {
     const cleanBuf = await stripCanvasFallback(buffer, 'image/png')
     return { name, type: 'image/png', buffer: cleanBuf }
@@ -97,21 +104,18 @@ export function stripJpeg(buffer) {
 
     const marker = data[i + 1]
 
-    // SOI
     if (marker === 0xd8) {
       out.push(0xff, 0xd8)
       i += 2
       continue
     }
 
-    // EOI
     if (marker === 0xd9) {
       out.push(0xff, 0xd9)
       i += 2
       break
     }
 
-    // SOS
     if (marker === 0xda) {
       for (; i < n; i++) {
         out.push(data[i])
