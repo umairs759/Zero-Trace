@@ -1,16 +1,24 @@
-# Active State Tracker — Enterprise Production Web Suite Overhaul
-- **Current Task**: All overhaul steps complete (index.html, style.css, main.js, dropzone.js, uiRenderer.js, zipExporter.js)
+# Active State Tracker — Agency-Grade & Forensic Redesign
+- **Current Task**: All overhaul steps complete (Base T-001–T-011 + Agency AG-01–AG-10)
 - **Decisions Log**: 
-  - Tailwind CSS v4 via `@import "tailwindcss"` in src/style.css with custom @theme (JetBrains Mono, cyber accent colors).
-  - Executive dashboard: Header w/ air-gapped status badge, Hero w/ prominent dropzone + Browse button, sticky Action Bar, Forensic Results Grid, Features section, Threat Matrix, Privacy Footer.
-  - Dropzone supports drag-drop, click-to-browse (hidden input), and global Ctrl+V clipboard paste.
-  - All DOM built with document.createElement() + .textContent; zero innerHTML for user-controlled data.
-  - buffer: file.buffer preserved in state so stripper never receives undefined.
-  - sanitization_report.json (ISO 8601 timestamp, SHA-256 before/after, threat scores) bundled in ZIP export.
+  - Vanilla JS + Vite for minimal bundle size and fastest binary parsing.
+  - ArrayBuffer over Base64 to save memory on large files.
+  - JPEG stripper removes all APPn (0xE0–0xEF) and COM segments; image data (SOF/DHT/DQT/SOS/entropy/EOI) preserved losslessly.
+  - PDF sanitization clears info dictionary via pdf-lib (title/author/subject/creator/producer/keywords/dates).
+  - PNG/WebP use document.createElement('canvas') + Image pixel redraw re-encoded to PNG.
+  - All DOM rendering uses document.createElement() + .textContent; zero innerHTML for user data.
+  - Every Object URL revoked: thumbnails on reset, download blobs after 200ms.
+  - Threat Score: GPS +50, Device ID +30, Timestamps +15, Camera specs +15 (0–100 scale).
+  - SHA-256 fingerprints via native Web Crypto API (crypto.subtle.digest).
+  - Re-verification: clean buffer re-parsed through readMetadata(); "Verified Clean" badge when 0 tags remain.
+  - Anonymous renaming: ZeroTrace_Clean_NN.ext to prevent filename metadata leakage.
+  - Inline SVGs (1.5px stroke) replace all emojis; no external assets, no CDNs.
+  - Real image thumbnails via URL.createObjectURL(new Blob([buffer])) with object-fit: cover.
 - **Constraints Verified**: 
   - vite.config.js base: '/Zero-Trace/' (locked, untouched)
   - .github/workflows/deploy.yml (locked, untouched)
   - src/main.js line 1: import './style.css' (locked)
-  - buffer: file.buffer preserved in state (locked)
-  - Zero innerHTML, zero fetch/XHR, zero localStorage/sessionStorage
-- **Known Issues**: Build chunk-size warning from exifr/pdf-lib dependencies (cosmetic, not an error).
+  - buffer: file.buffer preserved across all pipeline states
+  - Zero innerHTML, zero fetch/XHR, zero localStorage/sessionStorage, zero emojis
+  - No external network calls (CSP connect-src 'none')
+- **Known Issues**: PDF trailer dates may persist after info-dictionary clearing (pdf-lib limitation); canvas re-encode changes PNG/WebP format (not byte-identical).
