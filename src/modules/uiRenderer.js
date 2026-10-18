@@ -1,8 +1,48 @@
 const activeUrls = new Set()
 
 export function revokeAllThumbnails() {
-  activeUrls.forEach((url) => URL.revokeObjectURL(url))
+  activeUrls.forEach(url => URL.revokeObjectURL(url))
   activeUrls.clear()
+}
+
+export function updateCardToClean(index, cleanSha, cleanBuf, file) {
+  const card = document.querySelector(`[data-card-index="${index}"]`)
+  if (!card) return
+
+  const badge = card.querySelector('[data-threat-badge]')
+  if (badge) {
+    badge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/20 text-emerald-400')
+    badge.textContent = 'VERIFIED CLEAN'
+  }
+
+  const statusText = card.querySelector('[data-after-status]')
+  if (statusText) {
+    statusText.setAttribute('class', 'text-emerald-400 font-bold')
+    statusText.textContent = '✓ All Metadata Stripped (Lossless)'
+  }
+
+  const shaText = card.querySelector('[data-after-sha]')
+  if (shaText) {
+    shaText.textContent = `Clean SHA-256: ${cleanSha}`
+  }
+
+  const actionBox = card.querySelector('[data-card-footer]')
+  if (actionBox) {
+    actionBox.replaceChildren()
+    const downloadBtn = document.createElement('button')
+    downloadBtn.setAttribute('class', 'px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-colors shadow-lg')
+    downloadBtn.textContent = 'Download Sanitized File'
+    downloadBtn.onclick = () => {
+      const b = new Blob([cleanBuf], { type: file.type || 'image/jpeg' })
+      const u = URL.createObjectURL(b)
+      const a = document.createElement('a')
+      a.href = u
+      a.download = `ZeroTrace_Clean_${file.name}`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(u), 200)
+    }
+    actionBox.appendChild(downloadBtn)
+  }
 }
 
 export function renderResults(container, files, onCleanSingle) {
@@ -12,6 +52,7 @@ export function renderResults(container, files, onCleanSingle) {
 
   files.forEach((file, index) => {
     const card = document.createElement('div')
+    card.setAttribute('data-card-index', index)
     card.setAttribute('class', 'rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl space-y-6')
 
     const topRow = document.createElement('div')
@@ -45,13 +86,9 @@ export function renderResults(container, files, onCleanSingle) {
     fileMeta.appendChild(titleBox)
 
     const threatBadge = document.createElement('div')
-    if (file.isSanitized) {
-      threatBadge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/20 text-emerald-400')
-      threatBadge.textContent = 'VERIFIED CLEAN'
-    } else {
-      threatBadge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400')
-      threatBadge.textContent = 'METADATA DETECTED'
-    }
+    threatBadge.setAttribute('data-threat-badge', 'true')
+    threatBadge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400')
+    threatBadge.textContent = file.isSanitized ? 'VERIFIED CLEAN' : 'METADATA DETECTED'
 
     topRow.appendChild(fileMeta)
     topRow.appendChild(threatBadge)
@@ -72,7 +109,7 @@ export function renderResults(container, files, onCleanSingle) {
 
     const tagsInfo = document.createElement('div')
     tagsInfo.setAttribute('class', 'text-zinc-300')
-    tagsInfo.textContent = `Detected format: ${file.type || 'Unknown'}`
+    tagsInfo.textContent = `Detected format: ${file.type || 'image/jpeg'}`
 
     beforeBox.appendChild(beforeTitle)
     beforeBox.appendChild(beforeSha)
@@ -85,15 +122,12 @@ export function renderResults(container, files, onCleanSingle) {
     afterTitle.textContent = 'AFTER — SANITIZED STATUS'
 
     const afterStatus = document.createElement('div')
-    if (file.isSanitized) {
-      afterStatus.setAttribute('class', 'text-emerald-400 font-bold')
-      afterStatus.textContent = 'Status: ✓ All Metadata Stripped'
-    } else {
-      afterStatus.setAttribute('class', 'text-zinc-500')
-      afterStatus.textContent = 'Status: Pending Sanitization'
-    }
+    afterStatus.setAttribute('data-after-status', 'true')
+    afterStatus.setAttribute('class', file.isSanitized ? 'text-emerald-400 font-bold' : 'text-zinc-500')
+    afterStatus.textContent = file.isSanitized ? '✓ All Metadata Stripped (Lossless)' : 'Pending Sanitization'
 
     const afterSha = document.createElement('div')
+    afterSha.setAttribute('data-after-sha', 'true')
     afterSha.setAttribute('class', 'text-zinc-400 truncate')
     afterSha.textContent = `Clean SHA-256: ${file.sanitizedSha256 || 'Awaiting clean'}`
 
@@ -106,20 +140,15 @@ export function renderResults(container, files, onCleanSingle) {
     card.appendChild(diffGrid)
 
     const cardFooter = document.createElement('div')
+    cardFooter.setAttribute('data-card-footer', 'true')
     cardFooter.setAttribute('class', 'flex items-center justify-between pt-2')
 
     if (!file.isSanitized) {
       const cleanSingleBtn = document.createElement('button')
       cleanSingleBtn.setAttribute('class', 'px-4 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors')
-      cleanSingleBtn.setAttribute('data-clean-file', String(index))
       cleanSingleBtn.textContent = 'Clean This File'
+      cleanSingleBtn.onclick = () => onCleanSingle(index)
       cardFooter.appendChild(cleanSingleBtn)
-    } else {
-      const downloadSingleBtn = document.createElement('button')
-      downloadSingleBtn.setAttribute('class', 'px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-colors')
-      downloadSingleBtn.setAttribute('data-download-clean', String(index))
-      downloadSingleBtn.textContent = 'Download Sanitized File'
-      cardFooter.appendChild(downloadSingleBtn)
     }
 
     card.appendChild(cardFooter)
