@@ -1,10 +1,4 @@
 import './style.css'
-import './style.css'
-// ZeroTrace — Application entry point (T-003 to T-009)
-// Renders the app shell using DOM nodes only (no innerHTML) and wires up
-// dropzone ingestion → metadata reading → stripping → batch ZIP export.
-// No network access; 100% client-side; telemetry-free.
-
 import { Dropzone, showToast } from './modules/dropzone.js'
 import { renderResults } from './modules/uiRenderer.js'
 import { stripFile } from './modules/stripper.js'
@@ -28,31 +22,31 @@ header.appendChild(tagline)
 const dropzone = document.createElement('section')
 dropzone.id = 'dropzone'
 dropzone.className =
-  'min-h-[300px] flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900/50 px-8 py-12 text-slate-400 text-center transition-colors duration-200 hover:border-emerald-500 hover:bg-slate-900/80 hover:text-slate-100 cursor-pointer'
+  'min-h-[250px] flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900/50 px-8 py-12 text-slate-400 text-center transition-colors duration-200 hover:border-emerald-500 hover:bg-slate-900/80 hover:text-slate-100 cursor-pointer m-6'
 const dropHint = document.createElement('p')
-dropHint.className = 'text-sm'
+dropHint.className = 'text-sm font-medium'
 dropHint.textContent =
   'Drag & drop images (JPEG, PNG, WebP) or PDFs here — max 50MB per file'
 dropzone.appendChild(dropHint)
 
 const results = document.createElement('section')
 results.id = 'results'
-results.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-6 py-6'
+results.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-6 py-4'
 
 const actionBar = document.createElement('section')
 actionBar.id = 'action-bar'
 actionBar.className =
-  'bg-slate-900 border-t border-slate-800 px-6 py-4 flex items-center justify-between gap-4 hidden'
+  'bg-slate-900 border-t border-slate-800 px-6 py-4 flex items-center justify-between gap-4 hidden fixed bottom-0 left-0 right-0 z-50'
 
 const cleanBtn = document.createElement('button')
 cleanBtn.className =
-  'px-4 py-2 rounded-lg text-sm font-semibold text-emerald-900 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+  'px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
 cleanBtn.textContent = 'Clean All'
 cleanBtn.disabled = true
 
 const zipBtn = document.createElement('button')
 zipBtn.className =
-  'px-4 py-2 rounded-lg text-sm font-semibold text-slate-900 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+  'px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-950 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
 zipBtn.textContent = 'Download ZIP'
 zipBtn.disabled = true
 
@@ -80,12 +74,17 @@ function updateActionBar() {
 new Dropzone({
   element: dropzone,
   onFilesReady: async (files) => {
-    console.log('[ZeroTrace] Files ready for parsing:', files.length, 'file(s)')
     parsed = []
     sanitized = []
     const { readMetadata } = await import('./modules/metadataReader.js')
     for (const file of files) {
-      parsed.push(await readMetadata(file))
+      try {
+        const meta = await readMetadata(file)
+        // Ensure buffer, name, and type are preserved along with metadata
+        parsed.push({ ...file, ...meta, buffer: file.buffer })
+      } catch (e) {
+        parsed.push(file)
+      }
     }
     renderResults(results, parsed)
     updateActionBar()
@@ -101,16 +100,17 @@ cleanBtn.addEventListener('click', async () => {
   let failed = 0
   for (const file of parsed) {
     try {
-      sanitized.push(await stripFile(file))
+      const clean = await stripFile(file)
+      sanitized.push(clean)
     } catch (err) {
       failed++
-      console.error(`[ZeroTrace] strip failed for ${file.name}:`, err)
+      console.error('[ZeroTrace] strip failed:', err)
     }
   }
   const ok = sanitized.length
   showToast(
     failed === 0
-      ? `Sanitized ${ok}/${parsed.length} file(s)`
+      ? `Sanitized ${ok}/${parsed.length} file(s) successfully`
       : `Sanitized ${ok}/${parsed.length} file(s) (${failed} failed)`,
     failed === 0 ? 'success' : 'error'
   )
