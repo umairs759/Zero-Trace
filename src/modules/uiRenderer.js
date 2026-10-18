@@ -1,57 +1,65 @@
+const activeUrls = new Set()
+
+export function revokeAllThumbnails() {
+  activeUrls.forEach(url => URL.revokeObjectURL(url))
+  activeUrls.clear()
+}
+
 export function renderResults(container, files, onCleanSingle) {
   if (!container) return
+  revokeAllThumbnails()
   container.replaceChildren()
 
   files.forEach((file, index) => {
     const card = document.createElement('div')
     card.setAttribute('class', 'rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl space-y-6')
 
-    // Top Row: Thumbnail + Info + Threat
     const topRow = document.createElement('div')
     topRow.setAttribute('class', 'flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-zinc-800')
 
     const fileMeta = document.createElement('div')
     fileMeta.setAttribute('class', 'flex items-center gap-4')
 
-    if (file.buffer && file.type.startsWith('image/')) {
+    if (file.buffer && file.type && file.type.startsWith('image/')) {
       const img = document.createElement('img')
       const blob = new Blob([file.buffer], { type: file.type })
       const url = URL.createObjectURL(blob)
+      activeUrls.add(url)
       img.src = url
       img.setAttribute('class', 'w-16 h-16 rounded-xl object-cover border border-zinc-700 bg-zinc-950')
-      img.onload = () => URL.revokeObjectURL(url)
       fileMeta.appendChild(img)
     }
 
     const titleBox = document.createElement('div')
     const fileName = document.createElement('h3')
     fileName.setAttribute('class', 'text-base font-bold text-zinc-100 max-w-xs truncate')
-    fileName.textContent = file.name
+    fileName.textContent = file.name || 'Unnamed file'
 
     const fileSize = document.createElement('span')
     fileSize.setAttribute('class', 'text-xs text-zinc-400')
-    fileSize.textContent = `${(file.size / 1024).toFixed(2)} KB`
+    const sizeKB = file.size ? (file.size / 1024).toFixed(2) : '0'
+    fileSize.textContent = `${sizeKB} KB`
 
     titleBox.appendChild(fileName)
     titleBox.appendChild(fileSize)
     fileMeta.appendChild(titleBox)
 
     const threatBadge = document.createElement('div')
-    threatBadge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400')
-    threatBadge.textContent = file.isSanitized ? 'VERIFIED CLEAN' : 'METADATA DETECTED'
     if (file.isSanitized) {
       threatBadge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/20 text-emerald-400')
+      threatBadge.textContent = 'VERIFIED CLEAN'
+    } else {
+      threatBadge.setAttribute('class', 'px-3 py-1 rounded-full text-xs font-mono font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400')
+      threatBadge.textContent = 'METADATA DETECTED'
     }
 
     topRow.appendChild(fileMeta)
     topRow.appendChild(threatBadge)
     card.appendChild(topRow)
 
-    // Diff Grid (Before vs After)
     const diffGrid = document.createElement('div')
     diffGrid.setAttribute('class', 'grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono')
 
-    // Before Box
     const beforeBox = document.createElement('div')
     beforeBox.setAttribute('class', 'p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-2')
     const beforeTitle = document.createElement('div')
@@ -70,7 +78,6 @@ export function renderResults(container, files, onCleanSingle) {
     beforeBox.appendChild(beforeSha)
     beforeBox.appendChild(tagsInfo)
 
-    // After Box
     const afterBox = document.createElement('div')
     afterBox.setAttribute('class', 'p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-2')
     const afterTitle = document.createElement('div')
@@ -93,7 +100,6 @@ export function renderResults(container, files, onCleanSingle) {
     diffGrid.appendChild(afterBox)
     card.appendChild(diffGrid)
 
-    // Footer actions on card
     const cardFooter = document.createElement('div')
     cardFooter.setAttribute('class', 'flex items-center justify-between pt-2')
 
