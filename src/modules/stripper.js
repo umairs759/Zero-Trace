@@ -1,40 +1,47 @@
 import { PDFDocument } from 'pdf-lib'
 
-/**
- * Dispatch sanitization by file type.
- * @param {{name:string, type:string, size:number, buffer:ArrayBuffer}} input
- */
 export async function stripFile(input) {
-  const { name, type, buffer } = input
+  const { name, buffer } = input
+  let type = (input.type || '').toLowerCase()
 
   if (!buffer) {
     throw new Error(`Buffer missing for file: ${name}`)
   }
 
-  if (type === 'application/pdf') {
-    return { name, type, buffer: await stripPdf(buffer) }
+  // Fallback check by file extension if MIME type is empty or generic
+  const ext = (name.split('.').pop() || '').toLowerCase()
+  if (!type || type === 'application/octet-stream') {
+    if (['jpg', 'jpeg'].includes(ext)) type = 'image/jpeg'
+    else if (ext === 'png') type = 'image/png'
+    else if (ext === 'webp') type = 'image/webp'
+    else if (ext === 'pdf') type = 'application/pdf'
   }
 
-  if (type === 'image/jpeg') {
-    return { name, type, buffer: stripJpeg(buffer) }
+  if (type === 'application/pdf' || ext === 'pdf') {
+    const cleanBuf = await stripPdf(buffer)
+    return { name, type: 'application/pdf', buffer: cleanBuf }
   }
 
-  if (type === 'image/png' || type === 'image/webp') {
-    return {
-      name,
-      type: 'image/png',
-      buffer: await stripPngWebpCanvas(buffer, type),
-    }
+  if (type === 'image/jpeg' || ['jpg', 'jpeg'].includes(ext)) {
+    const cleanBuf = stripJpeg(buffer)
+    return { name, type: 'image/jpeg', buffer: cleanBuf }
   }
 
-  throw new Error(`Sanitization not implemented for type: ${type} (${name})`)
+  if (type === 'image/png' || type === 'image/webp' || ['png', 'webp'].includes(ext)) {
+    const cleanBuf = await stripCanvasFallback(buffer, type || 'image/png')
+    return { name, type: 'image/png', buffer: cleanBuf }
+  }
+
+  // Generic fallback: try canvas redraw for any other image
+  try {
+    const cleanBuf = await stripCanvasFallback(buffer, 'image/png')
+    return { name, type: 'image/png', buffer: cleanBuf }
+  } catch (e) {
+    throw new Error(`Unsupported file type: ${type || ext} (${name})`)
+  }
 }
 
-/**
- * PNG/WebP canvas fallback using standard browser Image & Canvas
- * Strips all metadata completely by redrawing pure pixels.
- */
-async function stripPngWebpCanvas(buffer, mimeType = 'image/png') {
+function stripCanvasFallback(buffer, mimeType) {
   return new Promise((resolve, reject) => {
     const blob = new Blob([buffer], { type: mimeType })
     const url = URL.createObjectURL(blob)
@@ -51,7 +58,7 @@ async function stripPngWebpCanvas(buffer, mimeType = 'image/png') {
 
         canvas.toBlob((cleanBlob) => {
           if (!cleanBlob) {
-            reject(new Error('Canvas export failed'))
+            reject(new Error('Canvas conversion failed'))
             return
           }
           cleanBlob.arrayBuffer().then(resolve).catch(reject)
@@ -64,17 +71,13 @@ async function stripPngWebpCanvas(buffer, mimeType = 'image/png') {
 
     img.onerror = () => {
       URL.revokeObjectURL(url)
-      reject(new Error('Failed to load image for canvas stripping'))
+      reject(new Error('Image failed to decode'))
     }
 
     img.src = url
   })
 }
 
-/**
- * Strip all APPn (0xE0–0xEF) and COM (0xFE) segments from a JPEG.
- * Lossless for image data because SOF/DHT/DQT/SOS/entropy/EOI are preserved.
- */
 export function stripJpeg(buffer) {
   const data = new Uint8Array(buffer)
   const n = data.length
@@ -94,21 +97,21 @@ export function stripJpeg(buffer) {
 
     const marker = data[i + 1]
 
-    // SOI — keep
+    // SOI
     if (marker === 0xd8) {
       out.push(0xff, 0xd8)
       i += 2
       continue
     }
 
-    // EOI — keep and stop
+    // EOI
     if (marker === 0xd9) {
       out.push(0xff, 0xd9)
       i += 2
       break
     }
 
-    // SOS — copy remaining entropy data through EOI
+    // SOS
     if (marker === 0xda) {
       for (; i < n; i++) {
         out.push(data[i])
@@ -116,16 +119,13 @@ export function stripJpeg(buffer) {
       break
     }
 
-    // 0xFF 0x00 / 0xFF 0xFF
     if (marker === 0x00 || marker === 0xff) {
       out.push(0xff)
       i += 2
       continue
     }
 
-    if (i + 2 >= n) {
-      break
-    }
+    if (i + 2 >= n) break
     const segmentLen = (data[i + 2] << 8) | data[i + 3]
     const segmentEnd = i + 2 + segmentLen
 
@@ -147,38 +147,14 @@ export function stripJpeg(buffer) {
   return new Uint8Array(out).buffer
 }
 
-/**
- * Generate an anonymous clean filename to prevent metadata leakage via
- * camera filename prefixes. Format: ZeroTrace_Clean_NN.ext
- * @param {string} originalName
- * @param {number} index
- * @param {string} mimeType
- */
-export function generateCleanName(originalName, index, mimeType) {
-  const extMap = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.png', // canvas re-encode normalizes to PNG
-    'application/pdf': '.pdf',
-  }
-  const ext = extMap[mimeType] || '.bin'
-  const padded = String(index + 1).padStart(2, '0')
-  return `ZeroTrace_Clean_${padded}${ext}`
-}
-
-/**
- * Clear the PDF document info dictionary via pdf-lib.
- */
 async function stripPdf(buffer) {
   const pdfDoc = await PDFDocument.load(buffer)
-
   pdfDoc.setTitle('')
   pdfDoc.setAuthor('')
   pdfDoc.setSubject('')
   pdfDoc.setKeywords([])
   pdfDoc.setCreator('')
   pdfDoc.setProducer('')
-
   const sanitized = await pdfDoc.save()
   return sanitized.buffer
 }
